@@ -1,0 +1,224 @@
+.live__status-row {
+  margin-bottom: 1rem;
+}
+
+.live__status {
+  margin: 0;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.live__error {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.5rem;
+  background: #fdecec;
+  color: var(--fail);
+}
+
+.live__question,
+.live__answer {
+  margin-bottom: 1.25rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.live__question h2,
+.live__answer h2 {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.live__question-text {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.live__answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.live__answer-head button,
+.live__manual-row button,
+.live__actions button,
+.live__dialog-actions button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.8rem;
+  font-weight: 600;
+}
+
+.live__answer-head button:focus-visible,
+.live__manual-row button:focus-visible,
+.live__actions button:focus-visible,
+.live__dialog-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.live__answer-body {
+  min-height: 10rem;
+  max-height: min(48vh, 28rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  font-size: clamp(1.05rem, 1.8vw, 1.2rem);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.live__sim {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.15rem;
+  border-radius: 0.85rem;
+  border: 1px dashed var(--border);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
+}
+
+.live__sim h2,
+.live__keypoints h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.live__sim-lede {
+  margin: 0 0 0.65rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.live__sim-progress {
+  margin: 0 0 0.65rem;
+  font-weight: 700;
+}
+
+.live__sim-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.live__sim-actions button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  font-weight: 600;
+}
+
+.live__meta {
+  margin: 0.65rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.live__keypoints {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.15rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.live__keypoints ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.live__keypoints li {
+  margin: 0.25rem 0;
+}
+
+.live__placeholder {
+  color: var(--muted);
+}
+
+.live__manual {
+  margin-bottom: 1.5rem;
+}
+
+.live__manual label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.live__manual-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.live__manual-row input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  background: var(--surface);
+}
+
+.live__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.live__secondary {
+  min-width: 7rem;
+}
+
+.live__danger {
+  border-color: color-mix(in srgb, var(--fail) 35%, var(--border)) !important;
+  color: var(--fail);
+}
+
+.live__dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 32, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 40;
+  padding: 1rem;
+}
+
+.live__dialog {
+  width: min(420px, 100%);
+  background: var(--surface);
+  border-radius: 0.85rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  transform-origin: center;
+}
+
+.live__dialog h3 {
+  margin: 0 0 0.5rem;
+}
+
+.live__dialog p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.live__dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

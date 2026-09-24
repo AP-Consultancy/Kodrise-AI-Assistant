@@ -1,0 +1,15 @@
+node_modules/
+.vite/
+out/
+dist/
+*.log
+debug-boot.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+*.local
+electron-stderr.txt
+electron-stdout.txt
+.vite-snapshot/

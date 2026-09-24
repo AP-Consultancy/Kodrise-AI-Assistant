@@ -1,0 +1,120 @@
+.capture-privacy-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.capture-privacy-panel__block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 30px rgba(21, 32, 43, 0.04);
+}
+
+.capture-privacy-panel__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.capture-privacy-panel__heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.capture-privacy-panel__badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--muted);
+}
+
+.capture-privacy-panel__badge.status-supported {
+  background: var(--accent-soft);
+  color: var(--ok);
+}
+
+.capture-privacy-panel__badge.status-partial {
+  background: rgba(234, 179, 8, 0.18);
+  color: #a16207;
+}
+
+.capture-privacy-panel__badge.status-unsupported,
+.capture-privacy-panel__badge.status-error {
+  background: rgba(185, 28, 28, 0.12);
+  color: #b91c1c;
+}
+
+.capture-privacy-panel__error {
+  color: var(--danger, #b91c1c);
+  margin: 0 0 12px;
+}
+
+.capture-privacy-panel__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 16px;
+  margin: 0 0 16px;
+}
+
+.capture-privacy-panel__meta dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.capture-privacy-panel__meta dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.capture-privacy-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.capture-privacy-panel__actions button {
+  border: 1px solid var(--border);
+  background: var(--bg, #fff);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.capture-privacy-panel__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.capture-privacy-panel__result {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.capture-privacy-panel__limitations h3,
+.capture-privacy-panel__diagnostics h3,
+.capture-privacy-panel__harness h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.capture-privacy-panel__limitations ul,
+.capture-privacy-panel__diagnostics ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.capture-privacy-panel__warning {
+  font-size: 0.85rem;
+  color: #a16207;
+  margin: 0 0 10px;
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/main/**/*", "src/core/**/*", "src/capture/**/*", "src/shared/**/*", "forge.config.ts"]
+}

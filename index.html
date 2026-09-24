@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Development CSP (Vite HMR):
+      - script-src 'self' — no unsafe-inline scripts
+      - style-src includes 'unsafe-inline' for Vite/React style injection in DEV only
+      - connect-src allows localhost HMR websockets
+
+      Production CSP is applied in main process session (see csp.ts) and is stricter:
+      - no unsafe-inline for scripts
+      - style-src 'self' only (bundled CSS)
+      - connect-src 'self'
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://localhost:* http://localhost:* http://127.0.0.1:* ws://127.0.0.1:*"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AP AI Assistance Tool</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/renderer/main.tsx"></script>
+  </body>
+</html>

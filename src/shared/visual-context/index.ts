@@ -1,0 +1,22 @@
+export type {
+  VisualCaptureCapabilities,
+  VisualCaptureRequest,
+  VisualCaptureSource,
+  VisualCapabilitySupport,
+  VisualContextMetadata,
+  VisualContextSnapshot,
+  VisualContextStatus,
+  VisualEvent,
+  VisualEventType,
+  VisualFrame,
+  VisualFrameReference,
+  VisualFrameStatus,
+  VisualMimeType,
+  VisualOCRSummary,
+  VisualPublicConfig,
+  VisualRegion,
+  VisualRuntimeState,
+  VisualSourceKind,
+  VisualVisionSummary,
+} from './types';
+export { DEFAULT_VISUAL_PUBLIC_CONFIG } from './types';

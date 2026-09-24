@@ -1,0 +1,85 @@
+.settings h1 {
+  margin: 0 0 0.4rem;
+}
+
+.settings__lede {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+}
+
+.settings__card {
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.settings__card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.settings__status {
+  margin: 0;
+  font-weight: 700;
+}
+
+.settings__card label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.settings__card input {
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+}
+
+.settings__card button {
+  justify-self: start;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.8rem;
+  font-weight: 600;
+}
+
+.settings__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.settings__choice {
+  justify-self: start;
+}
+
+.settings__choice--active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.settings__card button:focus-visible,
+.settings__card input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.settings__error {
+  color: var(--fail);
+  background: #fdecec;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.5rem;
+}
+
+.settings__ok {
+  color: var(--ok);
+  background: var(--accent-soft);
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.5rem;
+}

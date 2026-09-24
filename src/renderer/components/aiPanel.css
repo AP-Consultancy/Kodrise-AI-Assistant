@@ -1,0 +1,149 @@
+.ai-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.ai-panel__block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 30px rgba(21, 32, 43, 0.04);
+}
+
+.ai-panel__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ai-panel__heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.ai-panel__badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.ai-panel__badge.is-ready {
+  background: var(--accent-soft);
+  color: var(--ok);
+}
+
+.ai-panel__badge.is-idle {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--muted);
+}
+
+.ai-panel__badge.is-live {
+  background: rgba(14, 165, 233, 0.15);
+  color: #0369a1;
+}
+
+.ai-panel__error {
+  color: var(--danger, #b91c1c);
+  margin: 0 0 12px;
+}
+
+.ai-panel__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 16px;
+  margin: 0 0 16px;
+}
+
+.ai-panel__meta dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ai-panel__meta dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.ai-panel__meta code {
+  font-size: 0.78rem;
+}
+
+.ai-panel__credential {
+  margin-bottom: 16px;
+  padding-top: 4px;
+}
+
+.ai-panel__field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ai-panel__field span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ai-panel__field input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--bg, #fff);
+}
+
+.ai-panel__question h3,
+.ai-panel__response h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.ai-panel__question p {
+  margin: 0 0 14px;
+  color: var(--text);
+}
+
+.ai-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ai-panel__actions button {
+  border: 1px solid var(--border);
+  background: var(--bg, #fff);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.ai-panel__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-panel__response pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.ai-panel__status {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
