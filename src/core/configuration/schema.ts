@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   DEFAULT_PUBLIC_CONFIG,
   DEFAULT_STT_PUBLIC_CONFIG,
+  DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG,
 } from '../../shared/config/types';
 import { DEFAULT_CONTEXT_PUBLIC_CONFIG } from '../../shared/context/types';
 import { DEFAULT_AI_PUBLIC_CONFIG } from '../../shared/ai/types';
@@ -45,6 +46,14 @@ export const SttPublicConfigSchema = z
       .refine((value) => value.startsWith('wss://') || value.startsWith('ws://'), {
         message: 'STT endpoint must be a WebSocket URL',
       }),
+  })
+  .strict();
+
+export const AudioInputPublicConfigSchema = z
+  .object({
+    inputMode: z.enum(['microphone', 'meeting_audio', 'microphone_and_meeting']),
+    microphoneDeviceId: z.string().min(1).max(256).nullable(),
+    meetingAudioDeviceId: z.string().min(1).max(256).nullable(),
   })
   .strict();
 
@@ -148,6 +157,7 @@ export const PublicConfigSchema = z
     capture: CapturePreferencesSchema,
     retention: RetentionSettingsSchema,
     stt: SttPublicConfigSchema,
+    audioInput: AudioInputPublicConfigSchema,
     context: ContextPublicConfigSchema,
     ai: AIPublicConfigSchema,
     visualContext: VisualPublicConfigSchema,
@@ -173,6 +183,7 @@ export const PublicConfigUpdateSchema = z
       .optional(),
     retention: RetentionSettingsSchema.partial().optional(),
     stt: SttPublicConfigSchema.partial().optional(),
+    audioInput: AudioInputPublicConfigSchema.partial().optional(),
     context: z
       .object({
         budget: ContextBudgetSchema.partial().optional(),
@@ -246,6 +257,10 @@ function mergeWithDefaults(input: unknown): unknown {
     raw.stt && typeof raw.stt === 'object'
       ? { ...DEFAULT_STT_PUBLIC_CONFIG, ...(raw.stt as object) }
       : DEFAULT_STT_PUBLIC_CONFIG;
+  const audioInput =
+    raw.audioInput && typeof raw.audioInput === 'object'
+      ? { ...DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG, ...(raw.audioInput as object) }
+      : DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG;
   const rawContext =
     raw.context && typeof raw.context === 'object'
       ? (raw.context as Record<string, unknown>)
@@ -303,6 +318,7 @@ function mergeWithDefaults(input: unknown): unknown {
     capture,
     retention,
     stt,
+    audioInput,
     context,
     ai,
     visualContext,

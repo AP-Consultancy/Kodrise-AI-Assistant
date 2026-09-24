@@ -7,10 +7,13 @@ import {
   AudioPermissionSchema,
   AudioSelectDeviceSchema,
   AudioStartSchema,
+  AudioInputSetModeSchema,
+  AudioInputSelectDeviceSchema,
 } from '../../shared/ipc/schemas';
 import { ValidationError } from '../../shared/errors';
 import { getAppServices } from '../services/appContext';
 import { handleIpc } from './handleIpc';
+import { z } from 'zod';
 
 export function registerAudioIpcHandlers(): void {
   ipcMain.handle(IpcChannels.AUDIO_GET_DEVICES, (event) =>
@@ -104,6 +107,76 @@ export function registerAudioIpcHandlers(): void {
         throw new ValidationError('Invalid audio error payload');
       }
       return getAppServices().audio.markCaptureError(parsed.data.message);
+    }),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_GET_STATUS, (event) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_GET_STATUS, event, () =>
+      getAppServices().audio.getAudioInputStatus(),
+    ),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_GET_CAPABILITY, (event, payload: unknown) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_GET_CAPABILITY, event, () => {
+      const parsed = z
+        .object({ mode: AudioInputSetModeSchema.shape.mode.optional() })
+        .strict()
+        .safeParse(payload ?? {});
+      if (!parsed.success) {
+        throw new ValidationError('Invalid audio input capability payload');
+      }
+      return getAppServices().audio.getAudioInputCapability(parsed.data.mode);
+    }),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_GET_DIAGNOSTICS, (event) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_GET_DIAGNOSTICS, event, () =>
+      getAppServices().audio.getAudioInputDiagnostics(),
+    ),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_ENUMERATE, (event) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_ENUMERATE, event, () =>
+      getAppServices().audio.enumerateAudioInputDevices(),
+    ),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_SET_MODE, (event, payload: unknown) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_SET_MODE, event, () => {
+      const parsed = AudioInputSetModeSchema.safeParse(payload);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid audio input mode');
+      }
+      return getAppServices().audio.setAudioInputMode(parsed.data.mode);
+    }),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_SELECT_DEVICE, (event, payload: unknown) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_SELECT_DEVICE, event, () => {
+      const parsed = AudioInputSelectDeviceSchema.safeParse(payload);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid audio input device selection');
+      }
+      return getAppServices().audio.setAudioInputDevice(parsed.data.role, parsed.data.deviceId);
+    }),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_ACK_CONSENT, (event) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_ACK_CONSENT, event, () =>
+      getAppServices().audio.acknowledgeMeetingAudioConsent(),
+    ),
+  );
+
+  ipcMain.handle(IpcChannels.AUDIO_INPUT_MARK_SOURCE_ACTIVE, (event, payload: unknown) =>
+    handleIpc(IpcChannels.AUDIO_INPUT_MARK_SOURCE_ACTIVE, event, () => {
+      const parsed = z
+        .object({ source: z.enum(['microphone', 'meeting_audio']) })
+        .strict()
+        .safeParse(payload);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid audio source active payload');
+      }
+      return getAppServices().audio.markAudioInputSourceActive(parsed.data.source);
     }),
   );
 }

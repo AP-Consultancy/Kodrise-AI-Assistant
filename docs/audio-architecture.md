@@ -152,7 +152,7 @@ Phase 2A ships `MockSTTProvider` only: ignores PCM bytes, emits deterministic pa
 
 1. Mock STT only — not real speech recognition.
 2. Renderer uses `ScriptProcessorNode` (simple; may move to AudioWorklet later).
-3. No system/loopback audio.
+3. No system/loopback audio in Phase 2A (see Phase 2M `docs/meeting-audio-input.md`).
 4. No audio persistence / export.
 5. No question detection or AI responses.
 6. Device hot-plug is refresh-based, not fully reactive.

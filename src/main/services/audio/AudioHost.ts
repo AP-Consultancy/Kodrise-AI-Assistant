@@ -14,10 +14,18 @@ import type {
   AudioStreamConfig,
   MicrophonePermissionStatus,
 } from '../../../shared/audio/types';
-import type { TranscriptSnapshot, TranscriptStatus } from '../../../shared/transcription/types';
+import type { TranscriptSnapshot, TranscriptStatus, TranscriptSource } from '../../../shared/transcription/types';
 import type { SttConfigStatus, STTProviderStatus } from '../../../shared/stt/types';
-import type { SttPublicConfig } from '../../../shared/config/types';
-import { DEFAULT_STT_PUBLIC_CONFIG } from '../../../shared/config/types';
+import type { SttPublicConfig, AudioInputPublicConfig } from '../../../shared/config/types';
+import { DEFAULT_STT_PUBLIC_CONFIG, DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG } from '../../../shared/config/types';
+import type {
+  AudioInputCapability,
+  AudioInputDevice,
+  AudioInputDiagnostics,
+  AudioInputMode,
+  AudioInputStatus,
+} from '../../../shared/audio-input/types';
+import { AudioInputCoordinator } from '../../../core/audio-input/AudioInputCoordinator';
 import type { ContextPublicConfig } from '../../../shared/context/types';
 import { DEFAULT_CONTEXT_PUBLIC_CONFIG } from '../../../shared/context/types';
 import type { AIPublicConfig } from '../../../shared/ai/types';
@@ -52,6 +60,7 @@ function base64ToArrayBuffer(dataBase64: string): ArrayBuffer {
 export interface AudioHostDeps {
   stt?: STTProvider;
   getSttConfig?: () => SttPublicConfig;
+  getAudioInputConfig?: () => AudioInputPublicConfig;
   getContextConfig?: () => ContextPublicConfig;
   getAiConfig?: () => AIPublicConfig;
   getVisualContextSnapshot?: () => import('../../../shared/visual-context/types').VisualContextSnapshot | null;
@@ -62,6 +71,7 @@ export interface AudioHostDeps {
   createAiProvider?: (config: AIPublicConfig) => AIProvider;
   sessionId?: () => string | null;
   correlationId?: () => string | null;
+  persistAudioInputConfig?: (patch: Partial<AudioInputPublicConfig>) => void;
 }
 
 export class AudioHost {
@@ -70,10 +80,15 @@ export class AudioHost {
   private readonly questions: QuestionManager;
   private readonly contextEngine: ContextEngine;
   private readonly ai: AIOrchestrator;
+  private readonly audioInput: AudioInputCoordinator;
   private stt: STTProvider;
+  /** Second STT stream for meeting audio when mode is microphone_and_meeting. */
+  private meetingStt: STTProvider | null = null;
   private devices: AudioDeviceInfo[] = [];
   private unsubscribers: Array<() => void> = [];
   private readonly getSttConfig: () => SttPublicConfig;
+  private readonly getAudioInputConfig: () => AudioInputPublicConfig;
+  private readonly persistAudioInputConfig: ((patch: Partial<AudioInputPublicConfig>) => void) | null;
   private readonly hasSttCredential: () => Promise<boolean>;
   private readonly createSttProvider: ((config: SttPublicConfig) => STTProvider) | null;
   private readonly getVisualContextSnapshot: () => import('../../../shared/visual-context/types').VisualContextSnapshot | null;
@@ -86,10 +101,20 @@ export class AudioHost {
 
   constructor(deps: AudioHostDeps = {}) {
     this.getSttConfig = deps.getSttConfig ?? (() => ({ ...DEFAULT_STT_PUBLIC_CONFIG, provider: 'mock' }));
+    this.getAudioInputConfig =
+      deps.getAudioInputConfig ?? (() => ({ ...DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG }));
+    this.persistAudioInputConfig = deps.persistAudioInputConfig ?? null;
     this.hasSttCredential = deps.hasSttCredential ?? (async () => true);
     this.createSttProvider = deps.createSttProvider ?? null;
     this.getVisualContextSnapshot = deps.getVisualContextSnapshot ?? (() => null);
     this.getInterviewDocuments = deps.getInterviewDocuments ?? (() => null);
+    const initialAudio = this.getAudioInputConfig();
+    this.audioInput = new AudioInputCoordinator({
+      initialMode: initialAudio.inputMode,
+      onLog: (event, meta) => logger.info(event, meta),
+    });
+    this.audioInput.setMicrophoneDeviceId(initialAudio.microphoneDeviceId);
+    this.audioInput.setMeetingAudioDeviceId(initialAudio.meetingAudioDeviceId);
     this.stt = deps.stt ?? new MockSTTProvider();
     this.transcripts = new TranscriptStore({
       maxFinals: 200,
@@ -233,6 +258,9 @@ export class AudioHost {
     this.unsubscribers = [];
     this.ai.resetForSessionStop();
     void this.stt.disconnect();
+    void this.meetingStt?.disconnect();
+    this.meetingStt = null;
+    this.audioInput.reset();
   }
 
   getDevices(): AudioDeviceInfo[] {
@@ -323,6 +351,362 @@ export class AudioHost {
 
   isMicrophoneQuestionIngestEnabled(): boolean {
     return this.microphoneQuestionIngest;
+  }
+
+  getAudioInputStatus(): AudioInputStatus {
+    return this.audioInput.getStatus();
+  }
+
+  getAudioInputCapability(mode?: AudioInputMode): AudioInputCapability {
+    return this.audioInput.getCapability(mode);
+  }
+
+  getAudioInputDiagnostics(): AudioInputDiagnostics {
+    return this.audioInput.getDiagnostics();
+  }
+
+  async enumerateAudioInputDevices(): Promise<AudioInputDevice[]> {
+    return this.audioInput.enumerateDevices();
+  }
+
+  setAudioInputMode(mode: AudioInputMode): AudioInputStatus {
+    this.audioInput.setMode(mode);
+    this.persistAudioInputConfig?.({ inputMode: mode });
+    return this.audioInput.getStatus();
+  }
+
+  setAudioInputDevice(
+    role: 'microphone' | 'meeting_audio',
+    deviceId: string | null,
+  ): AudioInputStatus {
+    if (role === 'microphone') {
+      this.audioInput.setMicrophoneDeviceId(deviceId);
+      this.persistAudioInputConfig?.({ microphoneDeviceId: deviceId });
+    } else {
+      this.audioInput.setMeetingAudioDeviceId(deviceId);
+      this.persistAudioInputConfig?.({ meetingAudioDeviceId: deviceId });
+    }
+    return this.audioInput.getStatus();
+  }
+
+  acknowledgeMeetingAudioConsent(): AudioInputStatus {
+    this.audioInput.acknowledgeConsent();
+    return this.audioInput.getStatus();
+  }
+
+  markAudioInputSourceActive(source: TranscriptSource): AudioInputStatus {
+    this.audioInput.markSourceActive(source);
+    return this.audioInput.getStatus();
+  }
+
+  async start(config?: Partial<AudioStreamConfig>): Promise<AudioCaptureStatus> {
+    // Sync mode from persisted config (Settings may have changed).
+    const persisted = this.getAudioInputConfig();
+    if (persisted.inputMode !== this.audioInput.getMode()) {
+      try {
+        this.audioInput.setMode(persisted.inputMode);
+      } catch {
+        // Keep previous mode if unsupported; start will fail below for meeting modes.
+      }
+    }
+    this.audioInput.setMicrophoneDeviceId(persisted.microphoneDeviceId);
+    this.audioInput.setMeetingAudioDeviceId(persisted.meetingAudioDeviceId);
+
+    this.audioInput.beginStart();
+
+    const needsMic = this.audioInput.usesMicrophone();
+    if (needsMic) {
+      const permission = this.capture.getStatus().permission;
+      if (permission !== 'granted') {
+        throw new AudioPermissionError(
+          permission === 'denied'
+            ? 'Microphone permission denied'
+            : permission === 'unavailable'
+              ? 'Microphone unavailable'
+              : 'Microphone permission required',
+        );
+      }
+    } else {
+      // Meeting-only: allow capture controller to start without mic permission.
+      if (this.capture.getStatus().permission !== 'granted') {
+        this.capture.setPermission('granted');
+      }
+    }
+
+    const captureState = this.capture.getStatus().state;
+    // Prevent duplicate Deepgram sockets if Start is invoked while already live.
+    if (captureState === 'starting' || captureState === 'active') {
+      const sttStatus = this.stt.getStatus().status;
+      if (sttStatus !== 'connected' && sttStatus !== 'streaming' && sttStatus !== 'connecting') {
+        await this.stt.connect();
+      }
+      if (this.meetingStt) {
+        const meetingStatus = this.meetingStt.getStatus().status;
+        if (
+          meetingStatus !== 'connected' &&
+          meetingStatus !== 'streaming' &&
+          meetingStatus !== 'connecting'
+        ) {
+          await this.meetingStt.connect();
+        }
+      }
+      logger.info('audio.start.idempotent', { captureState, sttStatus: this.stt.getStatus().status });
+      return this.capture.getStatus();
+    }
+    if (captureState === 'paused') {
+      return this.resume();
+    }
+
+    const sttConfig = this.getSttConfig();
+    const streamConfig: Partial<AudioStreamConfig> = {
+      ...config,
+      sampleRate: config?.sampleRate ?? sttConfig.sampleRate,
+      channels: config?.channels ?? sttConfig.channels,
+      deviceId: config?.deviceId ?? persisted.microphoneDeviceId ?? undefined,
+    };
+
+    this.questions.setEnabled(true);
+    this.contextEngine.setEnabled(true);
+    this.ai.setEnabled(true);
+    this.capture.beginStart(streamConfig);
+    await this.ensureProviders();
+    await this.stt.connect();
+    if (this.meetingStt) {
+      await this.meetingStt.connect();
+    }
+    logger.info('stt.connection.connected', {
+      provider: this.stt.getStatus().provider,
+      meetingStream: Boolean(this.meetingStt),
+      audioInputMode: this.audioInput.getMode(),
+    });
+    logger.info('audio.started', {
+      sampleRate: this.capture.getConfig().sampleRate,
+      channels: this.capture.getConfig().channels,
+      deviceId: this.capture.getStatus().selectedDeviceId,
+      audioInputMode: this.audioInput.getMode(),
+    });
+    return this.capture.getStatus();
+  }
+
+  confirmActive(): AudioCaptureStatus {
+    this.capture.markActive();
+    // Mark expected sources active as soon as capture is confirmed.
+    if (this.audioInput.usesMicrophone()) {
+      this.audioInput.markSourceActive('microphone');
+    }
+    if (this.audioInput.usesMeetingAudio()) {
+      this.audioInput.markSourceActive('meeting_audio');
+    }
+    return this.capture.getStatus();
+  }
+
+  async pause(): Promise<AudioCaptureStatus> {
+    this.capture.pause();
+    this.audioInput.pause();
+    // Idle Deepgram Listen sockets are closed by the server with 1011; disconnect on pause.
+    await this.stt.disconnect();
+    if (this.meetingStt) {
+      await this.meetingStt.disconnect();
+    }
+    logger.info('audio.paused', { sttDisconnected: true });
+    return this.capture.getStatus();
+  }
+
+  async resume(): Promise<AudioCaptureStatus> {
+    await this.stt.connect();
+    if (this.meetingStt) {
+      await this.meetingStt.connect();
+    }
+    this.capture.resume();
+    this.audioInput.resume();
+    logger.info('audio.resumed', { sttConnected: true });
+    return this.capture.getStatus();
+  }
+
+  async stop(): Promise<AudioCaptureStatus> {
+    this.capture.beginStop();
+    await this.stt.disconnect();
+    if (this.meetingStt) {
+      await this.meetingStt.disconnect();
+      this.meetingStt = null;
+    }
+    this.audioInput.stop();
+    logger.info('stt.disconnected', { provider: this.stt.getStatus().provider });
+    this.capture.markStopped();
+    logger.info('audio.stopped', {});
+    this.broadcast(IpcEvents.AUDIO_FORCE_STOP, { reason: 'stop' });
+    return this.capture.getStatus();
+  }
+
+  async forceStopFromSession(): Promise<void> {
+    this.questions.resetForSessionStop();
+    this.contextEngine.resetForSessionStop();
+    this.ai.resetForSessionStop();
+    this.transcripts.clear();
+    this.audioInput.reset();
+    const state = this.capture.getStatus().state;
+    if (state === 'idle' || state === 'stopped') {
+      await this.stt.disconnect();
+      if (this.meetingStt) {
+        await this.meetingStt.disconnect();
+        this.meetingStt = null;
+      }
+      return;
+    }
+    logger.info('audio.stopped', { reason: 'session_stop' });
+    this.capture.forceStop();
+    await this.stt.disconnect();
+    if (this.meetingStt) {
+      await this.meetingStt.disconnect();
+      this.meetingStt = null;
+    }
+    this.broadcast(IpcEvents.AUDIO_FORCE_STOP, { reason: 'session_stop' });
+  }
+
+  async ingestChunk(dto: AudioChunkDto): Promise<void> {
+    const status = this.capture.getStatus();
+    if (status.state !== 'active') {
+      return;
+    }
+    if (!dto.sampleRate || dto.channels < 1) {
+      throw new AudioCaptureError('Invalid audio chunk format');
+    }
+
+    const source: TranscriptSource = dto.source ?? 'microphone';
+    // Track live sources from actual chunks (no renderer IPC required).
+    try {
+      this.audioInput.markSourceActive(source);
+    } catch {
+      // ignore coordinator state errors during ingest
+    }
+
+    const chunk = {
+      sequence: dto.sequence,
+      timestamp: dto.timestamp,
+      data: base64ToArrayBuffer(dto.dataBase64),
+      sampleRate: dto.sampleRate,
+      channels: dto.channels,
+    };
+
+    if (source === 'meeting_audio' && this.meetingStt) {
+      await this.meetingStt.sendAudio(chunk);
+      return;
+    }
+    // meeting_audio alone (no dual stream) or microphone → primary STT
+    await this.stt.sendAudio(chunk);
+  }
+
+  markCaptureError(message: string): AudioCaptureStatus {
+    logger.warn('audio.error', { message });
+    this.audioInput.reportError(message);
+    this.capture.markError(message);
+    void this.stt.disconnect();
+    void this.meetingStt?.disconnect();
+    this.broadcast(IpcEvents.AUDIO_FORCE_STOP, { reason: 'error' });
+    return this.capture.getStatus();
+  }
+
+  private async ensureProviders(): Promise<void> {
+    await this.ensureProvider();
+    await this.ensureMeetingProvider();
+  }
+
+  private async ensureProvider(): Promise<void> {
+    if (!this.createSttProvider) {
+      this.unbindSttListeners();
+      this.bindStt(this.stt, this.primaryTranscriptSource());
+      return;
+    }
+    await this.stt.disconnect();
+    this.unbindSttListeners();
+    this.stt = this.createSttProvider(this.getSttConfig());
+    this.bindStt(this.stt, this.primaryTranscriptSource());
+  }
+
+  private async ensureMeetingProvider(): Promise<void> {
+    // Dual stream only when both sources are selected.
+    if (this.audioInput.getMode() !== 'microphone_and_meeting') {
+      if (this.meetingStt) {
+        await this.meetingStt.disconnect();
+        this.meetingStt = null;
+      }
+      return;
+    }
+    if (!this.createSttProvider) {
+      // Tests without factory: reuse Mock for second stream.
+      this.meetingStt = new MockSTTProvider();
+      this.bindStt(this.meetingStt, 'meeting_audio', true);
+      return;
+    }
+    if (this.meetingStt) {
+      await this.meetingStt.disconnect();
+    }
+    this.meetingStt = this.createSttProvider(this.getSttConfig());
+    this.bindStt(this.meetingStt, 'meeting_audio', true);
+  }
+
+  private primaryTranscriptSource(): TranscriptSource {
+    return this.audioInput.getMode() === 'meeting_audio' ? 'meeting_audio' : 'microphone';
+  }
+
+  private sttUnsubscribers: Array<() => void> = [];
+  private meetingSttUnsubscribers: Array<() => void> = [];
+
+  private unbindSttListeners(): void {
+    for (const unsubscribe of this.sttUnsubscribers) {
+      unsubscribe();
+    }
+    this.sttUnsubscribers = [];
+    for (const unsubscribe of this.meetingSttUnsubscribers) {
+      unsubscribe();
+    }
+    this.meetingSttUnsubscribers = [];
+  }
+
+  private bindStt(
+    provider: STTProvider,
+    source: TranscriptSource = 'microphone',
+    append = false,
+  ): void {
+    if (!append) {
+      this.unbindSttListeners();
+    }
+    const bucket = append ? this.meetingSttUnsubscribers : this.sttUnsubscribers;
+    bucket.push(
+      provider.onPartialTranscript((event) => {
+        if (event.segment) {
+          this.transcripts.applyPartial(
+            event.segment.text,
+            event.segment.confidence,
+            {
+              startTime: event.segment.startTime,
+              endTime: event.segment.endTime,
+            },
+            source,
+          );
+        }
+      }),
+    );
+    bucket.push(
+      provider.onFinalTranscript((event) => {
+        if (event.segment) {
+          this.transcripts.commitFinal(
+            event.segment.text,
+            event.segment.confidence,
+            {
+              startTime: event.segment.startTime,
+              endTime: event.segment.endTime,
+            },
+            source,
+          );
+        }
+      }),
+    );
+    bucket.push(
+      provider.onStatus((status) => {
+        this.broadcast(IpcEvents.STT_STATUS_CHANGED, status);
+      }),
+    );
   }
 
   getQuestionStatus(): QuestionStatusSnapshot {
@@ -417,175 +801,6 @@ export class AudioHost {
     logger.info('audio.permission.requested', {});
     this.capture.beginPermissionRequest();
     return this.capture.getStatus();
-  }
-
-  async start(config?: Partial<AudioStreamConfig>): Promise<AudioCaptureStatus> {
-    const permission = this.capture.getStatus().permission;
-    if (permission !== 'granted') {
-      throw new AudioPermissionError(
-        permission === 'denied'
-          ? 'Microphone permission denied'
-          : permission === 'unavailable'
-            ? 'Microphone unavailable'
-            : 'Microphone permission required',
-      );
-    }
-
-    const captureState = this.capture.getStatus().state;
-    // Prevent duplicate Deepgram sockets if Start is invoked while already live.
-    if (captureState === 'starting' || captureState === 'active') {
-      const sttStatus = this.stt.getStatus().status;
-      if (sttStatus !== 'connected' && sttStatus !== 'streaming' && sttStatus !== 'connecting') {
-        await this.stt.connect();
-      }
-      logger.info('audio.start.idempotent', { captureState, sttStatus: this.stt.getStatus().status });
-      return this.capture.getStatus();
-    }
-    if (captureState === 'paused') {
-      return this.resume();
-    }
-
-    const sttConfig = this.getSttConfig();
-    const streamConfig: Partial<AudioStreamConfig> = {
-      ...config,
-      sampleRate: config?.sampleRate ?? sttConfig.sampleRate,
-      channels: config?.channels ?? sttConfig.channels,
-    };
-
-    this.questions.setEnabled(true);
-    this.contextEngine.setEnabled(true);
-    this.ai.setEnabled(true);
-    this.capture.beginStart(streamConfig);
-    await this.ensureProvider();
-    await this.stt.connect();
-    logger.info('stt.connection.connected', { provider: this.stt.getStatus().provider });
-    logger.info('audio.started', {
-      sampleRate: this.capture.getConfig().sampleRate,
-      channels: this.capture.getConfig().channels,
-      deviceId: this.capture.getStatus().selectedDeviceId,
-    });
-    return this.capture.getStatus();
-  }
-
-  confirmActive(): AudioCaptureStatus {
-    this.capture.markActive();
-    return this.capture.getStatus();
-  }
-
-  async pause(): Promise<AudioCaptureStatus> {
-    this.capture.pause();
-    // Idle Deepgram Listen sockets are closed by the server with 1011; disconnect on pause.
-    await this.stt.disconnect();
-    logger.info('audio.paused', { sttDisconnected: true });
-    return this.capture.getStatus();
-  }
-
-  async resume(): Promise<AudioCaptureStatus> {
-    await this.stt.connect();
-    this.capture.resume();
-    logger.info('audio.resumed', { sttConnected: true });
-    return this.capture.getStatus();
-  }
-
-  async stop(): Promise<AudioCaptureStatus> {
-    this.capture.beginStop();
-    await this.stt.disconnect();
-    logger.info('stt.disconnected', { provider: this.stt.getStatus().provider });
-    this.capture.markStopped();
-    logger.info('audio.stopped', {});
-    this.broadcast(IpcEvents.AUDIO_FORCE_STOP, { reason: 'stop' });
-    return this.capture.getStatus();
-  }
-
-  async forceStopFromSession(): Promise<void> {
-    this.questions.resetForSessionStop();
-    this.contextEngine.resetForSessionStop();
-    this.ai.resetForSessionStop();
-    this.transcripts.clear();
-    const state = this.capture.getStatus().state;
-    if (state === 'idle' || state === 'stopped') {
-      await this.stt.disconnect();
-      return;
-    }
-    logger.info('audio.stopped', { reason: 'session_stop' });
-    this.capture.forceStop();
-    await this.stt.disconnect();
-    this.broadcast(IpcEvents.AUDIO_FORCE_STOP, { reason: 'session_stop' });
-  }
-
-  async ingestChunk(dto: AudioChunkDto): Promise<void> {
-    const status = this.capture.getStatus();
-    if (status.state !== 'active') {
-      return;
-    }
-    if (!dto.sampleRate || dto.channels < 1) {
-      throw new AudioCaptureError('Invalid audio chunk format');
-    }
-
-    const chunk = {
-      sequence: dto.sequence,
-      timestamp: dto.timestamp,
-      data: base64ToArrayBuffer(dto.dataBase64),
-      sampleRate: dto.sampleRate,
-      channels: dto.channels,
-    };
-    await this.stt.sendAudio(chunk);
-  }
-
-  markCaptureError(message: string): AudioCaptureStatus {
-    logger.warn('audio.error', { message });
-    this.capture.markError(message);
-    void this.stt.disconnect();
-    this.broadcast(IpcEvents.AUDIO_FORCE_STOP, { reason: 'error' });
-    return this.capture.getStatus();
-  }
-
-  private async ensureProvider(): Promise<void> {
-    if (!this.createSttProvider) {
-      return;
-    }
-    await this.stt.disconnect();
-    this.unbindSttListeners();
-    this.stt = this.createSttProvider(this.getSttConfig());
-    this.bindStt(this.stt);
-  }
-
-  private sttUnsubscribers: Array<() => void> = [];
-
-  private unbindSttListeners(): void {
-    for (const unsubscribe of this.sttUnsubscribers) {
-      unsubscribe();
-    }
-    this.sttUnsubscribers = [];
-  }
-
-  private bindStt(provider: STTProvider): void {
-    this.unbindSttListeners();
-    this.sttUnsubscribers.push(
-      provider.onPartialTranscript((event) => {
-        if (event.segment) {
-          this.transcripts.applyPartial(event.segment.text, event.segment.confidence, {
-            startTime: event.segment.startTime,
-            endTime: event.segment.endTime,
-          });
-        }
-      }),
-    );
-    this.sttUnsubscribers.push(
-      provider.onFinalTranscript((event) => {
-        if (event.segment) {
-          this.transcripts.commitFinal(event.segment.text, event.segment.confidence, {
-            startTime: event.segment.startTime,
-            endTime: event.segment.endTime,
-          });
-        }
-      }),
-    );
-    this.sttUnsubscribers.push(
-      provider.onStatus((status) => {
-        this.broadcast(IpcEvents.STT_STATUS_CHANGED, status);
-      }),
-    );
   }
 
   private broadcast(channel: string, payload: unknown): void {

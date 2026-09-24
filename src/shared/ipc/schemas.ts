@@ -66,6 +66,25 @@ export const AudioChunkDtoSchema = z
     sampleRate: z.number().int().min(8000).max(48000),
     channels: z.number().int().min(1).max(2),
     byteLength: z.number().int().positive().max(1_000_000),
+    source: z.enum(['microphone', 'meeting_audio']).optional(),
+  });
+
+export const AudioInputModeSchema = z.enum([
+  'microphone',
+  'meeting_audio',
+  'microphone_and_meeting',
+]);
+
+export const AudioInputSetModeSchema = z
+  .object({
+    mode: AudioInputModeSchema,
+  })
+  .strict();
+
+export const AudioInputSelectDeviceSchema = z
+  .object({
+    role: z.enum(['microphone', 'meeting_audio']),
+    deviceId: z.string().min(1).max(256).nullable(),
   })
   .strict();
 

@@ -49,6 +49,15 @@ if (started) {
       const sessionHost = new SessionHost(createDefaultIdGenerator());
       const audioHost = new AudioHost({
         getSttConfig: () => config.getPublic().stt,
+        getAudioInputConfig: () =>
+          config.getPublic().audioInput ?? {
+            inputMode: 'microphone' as const,
+            microphoneDeviceId: null,
+            meetingAudioDeviceId: null,
+          },
+        persistAudioInputConfig: (patch) => {
+          config.update({ audioInput: patch });
+        },
         getContextConfig: () => config.getPublic().context,
         getAiConfig: () => config.getPublic().ai,
         getVisualContextSnapshot: () => {

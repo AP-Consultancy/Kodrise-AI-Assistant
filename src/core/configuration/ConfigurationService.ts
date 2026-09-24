@@ -1,5 +1,6 @@
 import { ConfigurationError } from '../../shared/errors';
 import type { PublicConfig } from '../../shared/config/types';
+import { DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG } from '../../shared/config/types';
 import { createDefaultPublicConfig, parsePublicConfig, PublicConfigUpdateSchema } from './schema';
 
 export interface PublicConfigStore {
@@ -26,7 +27,13 @@ export class ConfigurationService {
     }
 
     if (this.store) {
-      this.config = this.store.load();
+      // Always re-parse so older on-disk configs gain new fields (e.g. audioInput).
+      const loaded = this.store.load();
+      const normalized = parsePublicConfig(loaded);
+      this.config = normalized.success ? normalized.data : createDefaultPublicConfig();
+      if (!loaded.audioInput || loaded.audioInput.inputMode == null) {
+        this.store.save(this.config);
+      }
       return;
     }
 
@@ -34,7 +41,11 @@ export class ConfigurationService {
   }
 
   getPublic(): PublicConfig {
-    return structuredClone(this.config);
+    const clone = structuredClone(this.config);
+    if (!clone.audioInput) {
+      clone.audioInput = { ...DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG };
+    }
+    return clone;
   }
 
   update(patch: unknown): PublicConfig {
@@ -69,6 +80,11 @@ export class ConfigurationService {
       stt: {
         ...this.config.stt,
         ...parsedPatch.data.stt,
+      },
+      audioInput: {
+        ...DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG,
+        ...this.config.audioInput,
+        ...parsedPatch.data.audioInput,
       },
       context: {
         budget: {

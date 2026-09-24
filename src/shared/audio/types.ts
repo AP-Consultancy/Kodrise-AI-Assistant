@@ -46,6 +46,8 @@ export interface AudioChunkDto {
   sampleRate: number;
   channels: number;
   byteLength: number;
+  /** Phase 2M — which capture path produced this chunk. Defaults to microphone. */
+  source?: 'microphone' | 'meeting_audio';
 }
 
 export interface AudioCaptureStatus {

@@ -180,6 +180,25 @@ export interface CompanyAiApi {
     onStatusChanged: (listener: (status: AudioCaptureStatus) => void) => () => void;
     onForceStop: (listener: (event: AudioForceStopEvent) => void) => () => void;
   };
+  audioInput: {
+    getStatus: () => Promise<IpcResult<import('../audio-input/types').AudioInputStatus>>;
+    getCapability: (
+      mode?: import('../audio-input/types').AudioInputMode,
+    ) => Promise<IpcResult<import('../audio-input/types').AudioInputCapability>>;
+    getDiagnostics: () => Promise<IpcResult<import('../audio-input/types').AudioInputDiagnostics>>;
+    enumerateDevices: () => Promise<IpcResult<import('../audio-input/types').AudioInputDevice[]>>;
+    setMode: (
+      mode: import('../audio-input/types').AudioInputMode,
+    ) => Promise<IpcResult<import('../audio-input/types').AudioInputStatus>>;
+    selectDevice: (
+      role: 'microphone' | 'meeting_audio',
+      deviceId: string | null,
+    ) => Promise<IpcResult<import('../audio-input/types').AudioInputStatus>>;
+    acknowledgeConsent: () => Promise<IpcResult<import('../audio-input/types').AudioInputStatus>>;
+    markSourceActive: (
+      source: 'microphone' | 'meeting_audio',
+    ) => Promise<IpcResult<import('../audio-input/types').AudioInputStatus>>;
+  };
   transcript: {
     getRecent: (limit?: number) => Promise<IpcResult<TranscriptSegment[]>>;
     getSnapshot: () => Promise<IpcResult<TranscriptSnapshot>>;

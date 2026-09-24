@@ -4,6 +4,8 @@ import type { AIProviderId } from '../../shared/ai/types';
 import { STT_DEEPGRAM_CREDENTIAL_KEY } from '../../shared/config/types';
 import type { CapturePolicyId } from '../../shared/capture-policy/types';
 import { CAPTURE_POLICY_OPTIONS } from '../../shared/capture-policy/types';
+import type { AudioInputMode, AudioInputDevice } from '../../shared/audio-input/types';
+import { enumerateInputDevices } from '../audio/browserCapture';
 import './settingsPage.css';
 
 interface SettingsPageProps {
@@ -19,6 +21,12 @@ export function SettingsPage({ onOpenDiagnostics }: SettingsPageProps) {
   const [windowPrivacyPolicy, setWindowPrivacyPolicy] =
     useState<CapturePolicyId>('STANDARD');
   const [protectionEnabled, setProtectionEnabled] = useState(false);
+  const [audioInputMode, setAudioInputMode] = useState<AudioInputMode>('microphone');
+  const [microphoneDeviceId, setMicrophoneDeviceId] = useState<string | null>(null);
+  const [meetingAudioDeviceId, setMeetingAudioDeviceId] = useState<string | null>(null);
+  const [micDevices, setMicDevices] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [meetingDevices, setMeetingDevices] = useState<AudioInputDevice[]>([]);
+  const [meetingCapabilityNote, setMeetingCapabilityNote] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,10 +43,41 @@ export function SettingsPage({ onOpenDiagnostics }: SettingsPageProps) {
     if (config.ok) {
       setAiProvider(config.data.ai.provider);
       setWindowPrivacyPolicy(config.data.capture.windowPrivacyPolicy);
+      setAudioInputMode(config.data.audioInput?.inputMode ?? 'microphone');
+      setMicrophoneDeviceId(config.data.audioInput?.microphoneDeviceId ?? null);
+      setMeetingAudioDeviceId(config.data.audioInput?.meetingAudioDeviceId ?? null);
     }
     if (captureStatus.ok) {
       setWindowPrivacyPolicy(captureStatus.data.policy);
       setProtectionEnabled(captureStatus.data.contentProtectionEnabled);
+    }
+
+    if (window.companyAI.audioInput) {
+      const [audioInputStatus, meetingEnum] = await Promise.all([
+        window.companyAI.audioInput.getStatus(),
+        window.companyAI.audioInput.enumerateDevices(),
+      ]);
+      if (audioInputStatus.ok) {
+        setAudioInputMode(audioInputStatus.data.mode);
+        setMicrophoneDeviceId(audioInputStatus.data.microphoneDeviceId);
+        setMeetingAudioDeviceId(audioInputStatus.data.meetingAudioDeviceId);
+        if (!audioInputStatus.data.capability.meetingAudioAvailable) {
+          setMeetingCapabilityNote(
+            audioInputStatus.data.capability.reason ??
+              'Meeting/System Audio is unavailable on this device.',
+          );
+        } else {
+          setMeetingCapabilityNote(null);
+        }
+      }
+      if (meetingEnum.ok) setMeetingDevices(meetingEnum.data);
+    }
+
+    try {
+      const mics = await enumerateInputDevices();
+      setMicDevices(mics.map((d) => ({ deviceId: d.deviceId, label: d.label })));
+    } catch {
+      setMicDevices([]);
     }
   }
 
@@ -128,6 +167,60 @@ export function SettingsPage({ onOpenDiagnostics }: SettingsPageProps) {
         );
       }
       await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeAudioInputMode(mode: AudioInputMode) {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const capability = await window.companyAI.audioInput.getCapability(mode);
+      if (capability.ok && mode !== 'microphone' && !capability.data.supported) {
+        setError(
+          capability.data.reason ?? 'Meeting/System Audio is unavailable on this device.',
+        );
+        return;
+      }
+      const result = await window.companyAI.audioInput.setMode(mode);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      setAudioInputMode(result.data.mode);
+      setMessage(
+        mode === 'microphone'
+          ? 'Audio Input set to Microphone.'
+          : mode === 'meeting_audio'
+            ? 'Audio Input set to Meeting / System Audio.'
+            : 'Audio Input set to Microphone + Meeting Audio.',
+      );
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeMicDevice(deviceId: string) {
+    setBusy(true);
+    try {
+      const id = deviceId || null;
+      await window.companyAI.audioInput.selectDevice('microphone', id);
+      if (id) await window.companyAI.audio.selectDevice(id);
+      setMicrophoneDeviceId(id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeMeetingDevice(deviceId: string) {
+    setBusy(true);
+    try {
+      const id = deviceId || null;
+      await window.companyAI.audioInput.selectDevice('meeting_audio', id);
+      setMeetingAudioDeviceId(id);
     } finally {
       setBusy(false);
     }
@@ -226,6 +319,67 @@ export function SettingsPage({ onOpenDiagnostics }: SettingsPageProps) {
         >
           Save speech key
         </button>
+      </div>
+
+      <div className="settings__card" aria-labelledby="audio-input-heading">
+        <h2 id="audio-input-heading">Audio Input</h2>
+        <p className="settings__lede">
+          Choose which audio the interview assistant listens to. Meeting audio is only started when
+          you begin an interview — never automatically at app launch.
+        </p>
+        {meetingCapabilityNote ? (
+          <p className="settings__error" role="status">
+            {meetingCapabilityNote}
+          </p>
+        ) : null}
+        <label htmlFor="audio-input-mode">Audio Input</label>
+        <select
+          id="audio-input-mode"
+          value={audioInputMode}
+          disabled={busy}
+          onChange={(event) => void changeAudioInputMode(event.target.value as AudioInputMode)}
+        >
+          <option value="microphone">Microphone</option>
+          <option value="meeting_audio">Meeting / System Audio</option>
+          <option value="microphone_and_meeting">Microphone + Meeting Audio</option>
+        </select>
+        {(audioInputMode === 'microphone' || audioInputMode === 'microphone_and_meeting') && (
+          <>
+            <label htmlFor="mic-device">Microphone Device</label>
+            <select
+              id="mic-device"
+              value={microphoneDeviceId ?? ''}
+              disabled={busy}
+              onChange={(event) => void changeMicDevice(event.target.value)}
+            >
+              <option value="">Default microphone</option>
+              {micDevices.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        {(audioInputMode === 'meeting_audio' ||
+          audioInputMode === 'microphone_and_meeting') && (
+          <>
+            <label htmlFor="meeting-device">Meeting Audio Device</label>
+            <select
+              id="meeting-device"
+              value={meetingAudioDeviceId ?? ''}
+              disabled={busy || Boolean(meetingCapabilityNote)}
+              onChange={(event) => void changeMeetingDevice(event.target.value)}
+            >
+              <option value="">Select device</option>
+              {meetingDevices.map((device) => (
+                <option key={device.id} value={device.id}>
+                  {device.label}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
 
       <div className="settings__card" aria-labelledby="window-capture-heading">

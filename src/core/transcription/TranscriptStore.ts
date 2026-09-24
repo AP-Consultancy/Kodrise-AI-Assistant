@@ -3,6 +3,7 @@ import type {
   TranscriptSegment,
   TranscriptSnapshot,
   TranscriptStatus,
+  TranscriptSource,
 } from '../../shared/transcription/types';
 import { createDefaultIdGenerator, type IdGenerator } from '../../shared/session/types';
 
@@ -14,7 +15,7 @@ export interface TranscriptTiming {
 }
 
 export class TranscriptStore {
-  private partial: TranscriptSegment | null = null;
+  private partials = new Map<TranscriptSource, TranscriptSegment>();
   private finals: TranscriptSegment[] = [];
   private readonly maxFinals: number;
   private readonly createId: IdGenerator;
@@ -36,38 +37,42 @@ export class TranscriptStore {
     text: string,
     confidence: number | null = null,
     timing?: TranscriptTiming,
+    source: TranscriptSource = 'microphone',
   ): TranscriptSegment {
     const now = Date.now();
     const trimmed = text.trim();
-    if (this.partial) {
-      this.partial = {
-        ...this.partial,
-        text: trimmed,
-        timestamp: now,
-        confidence,
-        isFinal: false,
-        startTime: timing?.startTime ?? this.partial.startTime,
-        endTime: null,
-      };
-    } else {
-      this.partial = {
-        id: this.createId(),
-        text: trimmed,
-        timestamp: now,
-        startTime: timing?.startTime ?? now,
-        endTime: null,
-        isFinal: false,
-        confidence,
-      };
-    }
-    this.emit({ type: 'PARTIAL', segment: structuredClone(this.partial), timestamp: now });
-    return structuredClone(this.partial);
+    const existing = this.partials.get(source) ?? null;
+    const next: TranscriptSegment = existing
+      ? {
+          ...existing,
+          text: trimmed,
+          timestamp: now,
+          confidence,
+          isFinal: false,
+          startTime: timing?.startTime ?? existing.startTime,
+          endTime: null,
+          source,
+        }
+      : {
+          id: this.createId(),
+          text: trimmed,
+          timestamp: now,
+          startTime: timing?.startTime ?? now,
+          endTime: null,
+          isFinal: false,
+          confidence,
+          source,
+        };
+    this.partials.set(source, next);
+    this.emit({ type: 'PARTIAL', segment: structuredClone(next), timestamp: now });
+    return structuredClone(next);
   }
 
   commitFinal(
     text: string,
     confidence: number | null = null,
     timing?: TranscriptTiming,
+    source: TranscriptSource = 'microphone',
   ): TranscriptSegment | null {
     const trimmed = text.trim();
     if (!trimmed) {
@@ -75,14 +80,19 @@ export class TranscriptStore {
     }
 
     const last = this.finals[this.finals.length - 1];
-    if (last && last.text === trimmed) {
-      this.partial = null;
+    if (
+      last &&
+      last.text === trimmed &&
+      (last.source ?? 'microphone') === source
+    ) {
+      this.partials.delete(source);
       return structuredClone(last);
     }
 
     const now = Date.now();
-    const id = this.partial?.id ?? this.createId();
-    const startTime = timing?.startTime ?? this.partial?.startTime ?? now;
+    const existingPartial = this.partials.get(source) ?? null;
+    const id = existingPartial?.id ?? this.createId();
+    const startTime = timing?.startTime ?? existingPartial?.startTime ?? now;
     const endTime = timing?.endTime ?? now;
     const segment: TranscriptSegment = {
       id,
@@ -92,8 +102,9 @@ export class TranscriptStore {
       endTime,
       isFinal: true,
       confidence,
+      source,
     };
-    this.partial = null;
+    this.partials.delete(source);
     this.finals.push(segment);
     while (this.finals.length > this.maxFinals) {
       this.finals.shift();
@@ -103,15 +114,18 @@ export class TranscriptStore {
   }
 
   clear(): void {
-    this.partial = null;
+    this.partials.clear();
     this.finals = [];
     this.emit({ type: 'STATUS', message: 'cleared', timestamp: Date.now() });
   }
 
   getSnapshot(): TranscriptSnapshot {
+    const micPartial = this.partials.get('microphone');
+    const meetingPartial = this.partials.get('meeting_audio');
+    const partial = meetingPartial ?? micPartial ?? null;
     return {
-      partialText: this.partial?.text ?? null,
-      partialId: this.partial?.id ?? null,
+      partialText: partial?.text ?? null,
+      partialId: partial?.id ?? null,
       finals: this.finals.map((segment) => structuredClone(segment)),
       maxFinals: this.maxFinals,
     };
@@ -124,7 +138,7 @@ export class TranscriptStore {
   getStatus(): TranscriptStatus {
     return {
       segmentCount: this.finals.length,
-      hasPartial: Boolean(this.partial),
+      hasPartial: this.partials.size > 0,
       maxFinals: this.maxFinals,
     };
   }

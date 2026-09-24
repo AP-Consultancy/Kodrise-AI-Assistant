@@ -40,6 +40,14 @@
   font: inherit;
 }
 
+.settings__card select {
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  max-width: 100%;
+}
+
 .settings__card button {
   justify-self: start;
   border: 1px solid var(--border);

@@ -31,7 +31,7 @@ function friendlyListenError(message: string): string {
 export function LiveInterviewPage({ status, onEnded }: LiveInterviewPageProps) {
   const simulationMode = status.executionMode === 'simulation';
   const listeningActive = status.phase === 'live' && !status.paused && !simulationMode;
-  const { error: listenError, starting } = useInterviewListening(listeningActive);
+  const { error: listenError, starting, statusHint } = useInterviewListening(listeningActive);
   const [streamText, setStreamText] = useState<string | null>(null);
   const [manualQuestion, setManualQuestion] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -221,6 +221,12 @@ export function LiveInterviewPage({ status, onEnded }: LiveInterviewPageProps) {
           {statusLabel}
         </p>
       </div>
+
+      {statusHint && !simulationMode ? (
+        <p className="live__status" aria-live="polite">
+          {statusHint}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="live__error" role="alert">

@@ -2,6 +2,7 @@ import { BrowserWindow } from 'electron';
 import path from 'node:path';
 import { getAppServices } from '../services/appContext';
 import { registerInterviewIpcHandlers } from '../ipc/interviewHandlers';
+import { registerDisplayMediaLoopbackHandler } from '../audio/input/registerDisplayMediaLoopbackHandler';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -52,6 +53,8 @@ export function createMainWindow(): BrowserWindow {
   } catch {
     // Services may be unavailable only in isolated tests; production always initializes first.
   }
+
+  registerDisplayMediaLoopbackHandler(mainWindow);
 
   return mainWindow;
 }

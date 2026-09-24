@@ -11,6 +11,8 @@ export type AppErrorCode =
   | 'AUDIO_DEVICE'
   | 'AUDIO_CAPTURE'
   | 'AUDIO_FORMAT'
+  | 'AUDIO_INPUT_UNAVAILABLE'
+  | 'AUDIO_SOURCE_UNSUPPORTED'
   | 'STT_CONNECTION'
   | 'STT_AUTHENTICATION'
   | 'STT_CONFIGURATION'
@@ -141,6 +143,20 @@ export class AudioFormatError extends AppError {
   constructor(message: string, details?: Record<string, unknown>) {
     super('AUDIO_FORMAT', message, { details });
     this.name = 'AudioFormatError';
+  }
+}
+
+export class AudioInputUnavailableError extends AppError {
+  constructor(message = 'Meeting/System Audio is unavailable on this device.', details?: Record<string, unknown>) {
+    super('AUDIO_INPUT_UNAVAILABLE', message, { details, recoverable: false });
+    this.name = 'AudioInputUnavailableError';
+  }
+}
+
+export class AudioSourceUnsupportedError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super('AUDIO_SOURCE_UNSUPPORTED', message, { details, recoverable: false });
+    this.name = 'AudioSourceUnsupportedError';
   }
 }
 

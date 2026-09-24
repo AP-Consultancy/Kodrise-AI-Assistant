@@ -8,6 +8,8 @@ import type { VisualPublicConfig } from '../visual-context/types';
 import { DEFAULT_VISUAL_PUBLIC_CONFIG } from '../visual-context/types';
 import type { VisualIntelligencePublicConfig } from '../visual-intelligence/types';
 import { DEFAULT_VISUAL_INTELLIGENCE_CONFIG } from '../visual-intelligence/types';
+import type { AudioInputMode } from '../audio-input/types';
+import { DEFAULT_AUDIO_INPUT_MODE } from '../audio-input/types';
 
 export type { ContextPublicConfig, UserContext, ProjectContext, ContextBudget } from '../context/types';
 export type { AIPublicConfig, ResponseMode } from '../ai/types';
@@ -17,6 +19,8 @@ export type { VisualPublicConfig } from '../visual-context/types';
 export { DEFAULT_VISUAL_PUBLIC_CONFIG } from '../visual-context/types';
 export type { VisualIntelligencePublicConfig } from '../visual-intelligence/types';
 export { DEFAULT_VISUAL_INTELLIGENCE_CONFIG } from '../visual-intelligence/types';
+export type { AudioInputMode } from '../audio-input/types';
+export { DEFAULT_AUDIO_INPUT_MODE } from '../audio-input/types';
 
 export type AiProviderId = 'none' | 'company-gateway' | 'local';
 
@@ -54,6 +58,13 @@ export interface SttPublicConfig {
   endpoint: string;
 }
 
+/** Phase 2M — user-controlled interview audio source preferences. */
+export interface AudioInputPublicConfig {
+  inputMode: AudioInputMode;
+  microphoneDeviceId: string | null;
+  meetingAudioDeviceId: string | null;
+}
+
 export interface PublicConfig {
   schemaVersion: 1;
   theme: 'system' | 'light' | 'dark';
@@ -64,6 +75,7 @@ export interface PublicConfig {
   capture: CapturePreferences;
   retention: RetentionSettings;
   stt: SttPublicConfig;
+  audioInput: AudioInputPublicConfig;
   context: ContextPublicConfig;
   ai: AIPublicConfig;
   visualContext: VisualPublicConfig;
@@ -83,6 +95,12 @@ export const DEFAULT_STT_PUBLIC_CONFIG: SttPublicConfig = {
   channels: 1,
   interimResults: true,
   endpoint: 'wss://api.deepgram.com/v1/listen',
+};
+
+export const DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG: AudioInputPublicConfig = {
+  inputMode: DEFAULT_AUDIO_INPUT_MODE,
+  microphoneDeviceId: null,
+  meetingAudioDeviceId: null,
 };
 
 export const DEFAULT_PUBLIC_CONFIG: PublicConfig = {
@@ -106,6 +124,7 @@ export const DEFAULT_PUBLIC_CONFIG: PublicConfig = {
     logRetentionDays: 14,
   },
   stt: { ...DEFAULT_STT_PUBLIC_CONFIG },
+  audioInput: { ...DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG },
   context: structuredClone(DEFAULT_CONTEXT_PUBLIC_CONFIG),
   ai: structuredClone(DEFAULT_AI_PUBLIC_CONFIG),
   visualContext: structuredClone(DEFAULT_VISUAL_PUBLIC_CONFIG),

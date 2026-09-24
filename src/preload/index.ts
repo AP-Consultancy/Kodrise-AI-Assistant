@@ -147,6 +147,19 @@ const api: CompanyAiApi = {
     onForceStop: (listener: (event: AudioForceStopEvent) => void) =>
       onEvent(IpcEvents.AUDIO_FORCE_STOP, listener),
   },
+  audioInput: {
+    getStatus: () => ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_GET_STATUS),
+    getCapability: (mode?: string) =>
+      ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_GET_CAPABILITY, mode ? { mode } : {}),
+    getDiagnostics: () => ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_GET_DIAGNOSTICS),
+    enumerateDevices: () => ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_ENUMERATE),
+    setMode: (mode: string) => ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_SET_MODE, { mode }),
+    selectDevice: (role: 'microphone' | 'meeting_audio', deviceId: string | null) =>
+      ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_SELECT_DEVICE, { role, deviceId }),
+    acknowledgeConsent: () => ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_ACK_CONSENT),
+    markSourceActive: (source: 'microphone' | 'meeting_audio') =>
+      ipcRenderer.invoke(IpcChannels.AUDIO_INPUT_MARK_SOURCE_ACTIVE, { source }),
+  },
   transcript: {
     getRecent: (limit?: number): Promise<IpcResult<TranscriptSegment[]>> =>
       ipcRenderer.invoke(IpcChannels.TRANSCRIPT_GET_RECENT, limit ? { limit } : {}),
