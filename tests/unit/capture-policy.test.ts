@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   CapturePolicyService,
   type CaptureCapabilityProvider,
@@ -10,6 +10,10 @@ import type {
 } from '../../src/shared/capture-policy/types';
 import { CaptureApplyPolicySchema } from '../../src/shared/ipc/schemas';
 import { toSafeErrorPayload, ValidationError } from '../../src/shared/errors';
+import {
+  CAPTURE_POLICY_OPTIONS,
+  DEFAULT_CAPTURE_POLICY,
+} from '../../src/shared/capture-policy/types';
 
 function caps(overrides: Partial<CaptureCapabilities> = {}): CaptureCapabilities {
   return {
@@ -61,6 +65,54 @@ describe('CapturePolicyService', () => {
     expect(service.getCapabilities().windowCaptureProtection).toBe('PARTIAL');
   });
 
+  it('maps STANDARD → applyContentProtection(false)', () => {
+    const calls: boolean[] = [];
+    const provider = mockProvider(caps());
+    provider.applyContentProtection = (enabled) => {
+      calls.push(enabled);
+      return { enabled: false, support: 'SUPPORTED', diagnostics: [] };
+    };
+    const service = new CapturePolicyService({
+      provider,
+      initialPolicy: 'PRIVACY_AWARE',
+    });
+    const result = service.applyPolicy('STANDARD');
+    expect(calls).toEqual([false]);
+    expect(result.success).toBe(true);
+    expect(result.contentProtectionEnabled).toBe(false);
+    expect(service.getPolicy()).toBe('STANDARD');
+  });
+
+  it('maps DISABLED → applyContentProtection(false)', () => {
+    const calls: boolean[] = [];
+    const provider = mockProvider(caps());
+    provider.applyContentProtection = (enabled) => {
+      calls.push(enabled);
+      return { enabled: false, support: 'SUPPORTED', diagnostics: [] };
+    };
+    const service = new CapturePolicyService({ provider });
+    const result = service.applyPolicy('DISABLED');
+    expect(calls).toEqual([false]);
+    expect(result.success).toBe(true);
+    expect(result.contentProtectionEnabled).toBe(false);
+    expect(service.getPolicy()).toBe('DISABLED');
+  });
+
+  it('maps PRIVACY_AWARE → applyContentProtection(true)', () => {
+    const calls: boolean[] = [];
+    const provider = mockProvider(caps());
+    provider.applyContentProtection = (enabled) => {
+      calls.push(enabled);
+      return { enabled: true, support: 'PARTIAL', diagnostics: [] };
+    };
+    const service = new CapturePolicyService({ provider });
+    const result = service.applyPolicy('PRIVACY_AWARE');
+    expect(calls).toEqual([true]);
+    expect(result.success).toBe(true);
+    expect(result.contentProtectionEnabled).toBe(true);
+    expect(result.status).toBe('PARTIAL');
+  });
+
   it('applies STANDARD without enabling content protection', () => {
     const service = new CapturePolicyService({
       provider: mockProvider(caps()),
@@ -87,17 +139,22 @@ describe('CapturePolicyService', () => {
   });
 
   it('refuses PRIVACY_AWARE on unsupported platforms', () => {
-    const service = new CapturePolicyService({
-      provider: mockProvider(
-        caps({
-          platform: 'linux',
-          windowCaptureProtection: 'UNSUPPORTED',
-          electronCapabilityAvailable: 'UNSUPPORTED',
-          platformSupported: 'UNSUPPORTED',
-        }),
-      ),
-    });
+    const calls: boolean[] = [];
+    const provider = mockProvider(
+      caps({
+        platform: 'linux',
+        windowCaptureProtection: 'UNSUPPORTED',
+        electronCapabilityAvailable: 'UNSUPPORTED',
+        platformSupported: 'UNSUPPORTED',
+      }),
+    );
+    provider.applyContentProtection = (enabled) => {
+      calls.push(enabled);
+      return { enabled: false, support: 'UNSUPPORTED', diagnostics: [] };
+    };
+    const service = new CapturePolicyService({ provider });
     const result = service.applyPolicy('PRIVACY_AWARE');
+    expect(calls).toEqual([]);
     expect(result.success).toBe(false);
     expect(result.status).toBe('UNSUPPORTED');
     expect(result.contentProtectionEnabled).toBe(false);
@@ -158,5 +215,54 @@ describe('Capture IPC contracts', () => {
     const payload = toSafeErrorPayload(new ValidationError('Invalid capture policy payload'));
     expect(payload.code).toBe('VALIDATION');
     expect(JSON.stringify(payload)).not.toMatch(/apiKey|secret/i);
+  });
+});
+
+describe('Window Capture Protection labels', () => {
+  it('exposes the three policies with clear Settings copy', () => {
+    expect(DEFAULT_CAPTURE_POLICY).toBe('STANDARD');
+    expect(CAPTURE_POLICY_OPTIONS.map((o) => o.id)).toEqual([
+      'STANDARD',
+      'PRIVACY_AWARE',
+      'DISABLED',
+    ]);
+    expect(CAPTURE_POLICY_OPTIONS[0]?.description).toMatch(/normal screen capture/i);
+    expect(CAPTURE_POLICY_OPTIONS[1]?.description).toMatch(/OS-level capture protection/i);
+    expect(CAPTURE_POLICY_OPTIONS[2]?.description).toMatch(/No capture protection/i);
+  });
+});
+
+describe('ElectronCaptureCapabilityProvider content protection mapping', () => {
+  it('calls BrowserWindow.setContentProtection(true|false) for enable/disable', async () => {
+    const setContentProtection = vi.fn();
+    vi.resetModules();
+    vi.doMock('electron', () => ({
+      app: { getVersion: () => '36.4.0' },
+      BrowserWindow: {
+        prototype: { setContentProtection },
+        getAllWindows: () => [
+          {
+            isDestroyed: () => false,
+            setContentProtection,
+          },
+        ],
+        getFocusedWindow: () => null,
+      },
+    }));
+
+    const { ElectronCaptureCapabilityProvider } = await import(
+      '../../src/main/capture/ElectronCaptureCapabilityProvider'
+    );
+    const provider = new ElectronCaptureCapabilityProvider();
+
+    const on = provider.applyContentProtection(true);
+    expect(setContentProtection).toHaveBeenCalledWith(true);
+    expect(on.enabled).toBe(true);
+
+    const off = provider.applyContentProtection(false);
+    expect(setContentProtection).toHaveBeenCalledWith(false);
+    expect(off.enabled).toBe(false);
+
+    vi.doUnmock('electron');
   });
 });

@@ -24,6 +24,12 @@
   font-size: 1.05rem;
 }
 
+.capture-privacy-panel__lede {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .capture-privacy-panel__badge {
   font-size: 0.75rem;
   font-weight: 700;

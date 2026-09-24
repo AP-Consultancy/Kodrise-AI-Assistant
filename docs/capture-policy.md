@@ -25,13 +25,15 @@ Core is platform-independent. Electron/OS details live in `src/main/capture/`.
 
 ## Policies
 
-| Policy | Behavior |
-|--------|----------|
-| `STANDARD` | Normal window; content protection off |
-| `PRIVACY_AWARE` | Enable documented content protection where supported |
-| `DISABLED` | Explicitly keep protection off |
+| Policy | Behavior | `setContentProtection` |
+|--------|----------|------------------------|
+| `STANDARD` (default) | Normal window; content protection off | `false` |
+| `PRIVACY_AWARE` | Enable documented content protection where supported | `true` |
+| `DISABLED` | Explicitly keep protection off | `false` |
 
 Persisted as `publicConfig.capture.windowPrivacyPolicy`.
+
+**Settings UI:** Settings → **Window Capture Protection** (also mirrored in Advanced Diagnostics).
 
 ---
 

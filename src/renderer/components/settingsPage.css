@@ -83,3 +83,48 @@
   padding: 0.7rem 0.85rem;
   border-radius: 0.5rem;
 }
+
+.settings__fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.settings__legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.settings__policy-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.settings__policy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.settings__policy--active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.settings__policy input {
+  margin-top: 0.2rem;
+}
+
+.settings__policy-text {
+  display: grid;
+  gap: 0.15rem;
+}

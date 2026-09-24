@@ -6,9 +6,8 @@ import type {
   CapturePolicyId,
   CapturePolicyStatus,
 } from '../../shared/capture-policy/types';
+import { CAPTURE_POLICY_OPTIONS } from '../../shared/capture-policy/types';
 import './capturePrivacyPanel.css';
-
-const POLICIES: CapturePolicyId[] = ['STANDARD', 'PRIVACY_AWARE', 'DISABLED'];
 
 export function CapturePrivacyPanel() {
   const [status, setStatus] = useState<CapturePolicyStatus | null>(null);
@@ -112,13 +111,17 @@ export function CapturePrivacyPanel() {
     <section className="capture-privacy-panel" aria-label="Capture privacy diagnostics">
       <div className="capture-privacy-panel__block">
         <div className="capture-privacy-panel__heading">
-          <h2>Capture Privacy</h2>
+          <h2>Window Capture Protection (diagnostics)</h2>
           <span
             className={`capture-privacy-panel__badge status-${(status?.overallStatus ?? 'UNKNOWN').toLowerCase()}`}
           >
             {status?.overallStatus ?? '—'}
           </span>
         </div>
+        <p className="capture-privacy-panel__lede">
+          Same setting as Settings → Window Capture Protection. Change policy there for everyday
+          use; this panel keeps capability and diagnostic detail.
+        </p>
 
         {error ? (
           <p className="capture-privacy-panel__error" role="alert">
@@ -176,14 +179,16 @@ export function CapturePrivacyPanel() {
         </dl>
 
         <div className="capture-privacy-panel__actions">
-          {POLICIES.map((policy) => (
+          {CAPTURE_POLICY_OPTIONS.map((option) => (
             <button
-              key={policy}
+              key={option.id}
               type="button"
               disabled={busy}
-              onClick={() => void handleApply(policy)}
+              title={option.description}
+              aria-pressed={status?.policy === option.id}
+              onClick={() => void handleApply(option.id)}
             >
-              {policy}
+              {option.label}
             </button>
           ))}
           <button type="button" disabled={busy} onClick={() => void handleReset()}>

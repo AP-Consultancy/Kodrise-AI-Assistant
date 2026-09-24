@@ -90,8 +90,32 @@ export interface CaptureHarnessSnapshot {
 
 export const DEFAULT_CAPTURE_POLICY: CapturePolicyId = 'STANDARD';
 
+/** User-facing labels for Settings — maps 1:1 to CapturePolicyId. */
+export const CAPTURE_POLICY_OPTIONS: ReadonlyArray<{
+  id: CapturePolicyId;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: 'STANDARD',
+    label: 'Standard',
+    description: 'Normal screen capture behavior',
+  },
+  {
+    id: 'PRIVACY_AWARE',
+    label: 'Privacy Aware',
+    description: 'Request OS-level capture protection',
+  },
+  {
+    id: 'DISABLED',
+    label: 'Disabled',
+    description: 'No capture protection',
+  },
+] as const;
+
 export const CAPTURE_POLICY_LIMITATIONS = [
   'OS/Electron capture protection applies only to capture paths that honor the documented API.',
   'Configuring the API successfully does not guarantee every third-party recorder will respect it.',
   'Full-display capture, remote desktops, VMs, and external cameras may still include the window.',
 ] as const;
+

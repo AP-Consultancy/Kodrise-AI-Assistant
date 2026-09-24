@@ -13,5 +13,6 @@ export type {
 } from './types';
 export {
   CAPTURE_POLICY_LIMITATIONS,
+  CAPTURE_POLICY_OPTIONS,
   DEFAULT_CAPTURE_POLICY,
 } from './types';
