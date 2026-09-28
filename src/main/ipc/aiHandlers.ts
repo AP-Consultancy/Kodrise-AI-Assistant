@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { IpcChannels } from '../../shared/ipc/channels';
-import { AICancelSchema, AIGenerateSchema } from '../../shared/ipc/schemas';
+import { AICancelSchema, AIGenerateSchema, AITestConnectionSchema } from '../../shared/ipc/schemas';
 import { ValidationError } from '../../shared/errors';
 import { getAppServices } from '../services/appContext';
 import { handleIpc } from './handleIpc';
@@ -46,5 +46,15 @@ export function registerAiIpcHandlers(): void {
     handleIpc(IpcChannels.AI_GET_CURRENT_RESPONSE, event, () =>
       getAppServices().audio.getCurrentAiResponse(),
     ),
+  );
+
+  ipcMain.handle(IpcChannels.AI_TEST_CONNECTION, (event, payload: unknown) =>
+    handleIpc(IpcChannels.AI_TEST_CONNECTION, event, () => {
+      const parsed = AITestConnectionSchema.safeParse(payload ?? {});
+      if (!parsed.success) {
+        throw new ValidationError('Invalid AI test connection payload');
+      }
+      return getAppServices().audio.testAiConnection();
+    }),
   );
 }

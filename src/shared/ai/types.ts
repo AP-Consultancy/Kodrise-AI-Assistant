@@ -4,7 +4,7 @@ import type { SafeErrorPayload } from '../errors';
 
 export type ResponseMode = 'short' | 'normal' | 'detailed';
 
-export type AIProviderId = 'openai' | 'mock';
+export type AIProviderId = 'openai' | 'mock' | 'gemini';
 
 export type AIResponseStatus =
   | 'idle'
@@ -109,6 +109,56 @@ export interface AIProviderStatus {
   lastErrorCode: string | null;
 }
 
+/** Declared capabilities for the active AI provider/model. */
+export interface AIProviderCapabilities {
+  textGeneration: boolean;
+  streaming: boolean;
+  vision: boolean;
+  structuredOutput: boolean;
+}
+
+export const DEFAULT_OPENAI_CAPABILITIES: AIProviderCapabilities = {
+  textGeneration: true,
+  streaming: true,
+  vision: false,
+  structuredOutput: false,
+};
+
+export const DEFAULT_GEMINI_CAPABILITIES: AIProviderCapabilities = {
+  textGeneration: true,
+  streaming: true,
+  vision: false,
+  structuredOutput: false,
+};
+
+export const DEFAULT_MOCK_CAPABILITIES: AIProviderCapabilities = {
+  textGeneration: true,
+  streaming: true,
+  vision: false,
+  structuredOutput: false,
+};
+
+/** Diagnostic / Test Connection status — never implies PASS from key presence alone. */
+export type AIProviderDiagnosticStatus =
+  | 'pass'
+  | 'fail'
+  | 'not_configured'
+  | 'not_tested'
+  | 'unavailable';
+
+export interface AIConnectionTestResult {
+  success: boolean;
+  provider: AIProviderId;
+  status: AIProviderDiagnosticStatus;
+  message: string;
+  /** Failure category or Gemini diagnostic code when available. */
+  category: string | null;
+  /** Stable sanitized diagnostic code (e.g. MODEL_UNAVAILABLE). */
+  diagnosticCode: string | null;
+  latencyMs: number | null;
+  model: string;
+}
+
 export interface AIOrchestratorStatus {
   enabled: boolean;
   provider: AIProviderId;
@@ -146,8 +196,47 @@ export const DEFAULT_AI_PUBLIC_CONFIG: AIPublicConfig = {
   maxResponseHistory: 20,
 };
 
+/** Default model when user selects Gemini (current stable Flash for new API keys). */
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+
+/**
+ * Older Gemini model ids that new Google AI Studio keys often cannot access.
+ * Migrated to {@link DEFAULT_GEMINI_MODEL} when loading public config.
+ */
+export const LEGACY_GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-001',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash-lite-001',
+] as const;
+
+export function isLegacyGeminiModel(model: string): boolean {
+  return (LEGACY_GEMINI_MODELS as readonly string[]).includes(model);
+}
+
+/** Default OpenAI chat model. */
+export const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
+
 /** CredentialVault key for OpenAI API token. Never exposed to renderer. */
 export const AI_OPENAI_CREDENTIAL_KEY = 'ai.openai.apiKey';
+
+/** CredentialVault key for Google Gemini API token. Never exposed to renderer. */
+export const AI_GEMINI_CREDENTIAL_KEY = 'ai.gemini.apiKey';
+
+export function getAiCredentialKey(provider: AIProviderId): string | null {
+  if (provider === 'openai') return AI_OPENAI_CREDENTIAL_KEY;
+  if (provider === 'gemini') return AI_GEMINI_CREDENTIAL_KEY;
+  return null;
+}
+
+export function defaultModelForProvider(provider: AIProviderId): string {
+  if (provider === 'gemini') return DEFAULT_GEMINI_MODEL;
+  if (provider === 'mock') return 'mock-answer-v1';
+  return DEFAULT_OPENAI_MODEL;
+}
 
 export interface AIConfigStatus {
   provider: AIProviderId;

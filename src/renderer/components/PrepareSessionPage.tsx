@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type {
   InterviewSessionContextPublic,
-  InterviewStatus,
   SessionDocumentMeta,
 } from '../../shared/interview/types';
 import { documentTypeLabel, toDocumentType } from '../../shared/interview/documentTypes';
@@ -15,18 +14,23 @@ export function PrepareSessionPage({ onStarted }: PrepareSessionProps) {
   const [docs, setDocs] = useState<InterviewSessionContextPublic | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
 
   async function refresh() {
-    const result = await window.companyAI.interview.getDocuments();
-    if (result.ok) setDocs(result.data);
+    const [documents, aiConfig] = await Promise.all([
+      window.companyAI.interview.getDocuments(),
+      window.companyAI.ai.getConfiguration(),
+    ]);
+    if (documents.ok) setDocs(documents.data);
+    if (aiConfig.ok) setAiConfigured(aiConfig.data.configured || aiConfig.data.provider === 'mock');
   }
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       void (async () => {
-        const result = await window.companyAI.interview.getDocuments();
-        if (!cancelled && result.ok) setDocs(result.data);
+        if (cancelled) return;
+        await refresh();
       })();
     });
     return () => {
@@ -87,11 +91,9 @@ export function PrepareSessionPage({ onStarted }: PrepareSessionProps) {
   return (
     <section className="prepare" aria-labelledby="prepare-title">
       <header className="prepare__hero">
-        <p className="prepare__eyebrow">AP AI Assistant</p>
-        <h1 id="prepare-title">Prepare Interview</h1>
+        <h1 id="prepare-title">Ready for your interview?</h1>
         <p className="prepare__lede">
-          Upload your resume and optional documents, then start. Listening and answers run
-          automatically.
+          Your materials and AI assistant are ready when you are.
         </p>
       </header>
 
@@ -100,6 +102,19 @@ export function PrepareSessionPage({ onStarted }: PrepareSessionProps) {
           {error}
         </p>
       ) : null}
+
+      <div className="prepare__readiness" aria-label="Readiness checklist">
+        <div className={docs?.resume ? 'prepare__ready-item is-ok' : 'prepare__ready-item'}>
+          {docs?.resume ? '✓' : '○'} Resume
+        </div>
+        <div className={docs?.jobDescription ? 'prepare__ready-item is-ok' : 'prepare__ready-item'}>
+          {docs?.jobDescription ? '✓' : '○'} Job description
+        </div>
+        <div className={aiConfigured ? 'prepare__ready-item is-ok' : 'prepare__ready-item'}>
+          {aiConfigured ? '✓' : '○'} AI
+        </div>
+        <div className="prepare__ready-item is-ok">✓ Microphone</div>
+      </div>
 
       <div className="prepare__slot">
         <div className="prepare__slot-head">
@@ -160,7 +175,7 @@ export function PrepareSessionPage({ onStarted }: PrepareSessionProps) {
           disabled={busy}
           onClick={() => void startInterview()}
         >
-          Start Interview
+          Start Interview →
         </button>
       </div>
     </section>
@@ -226,5 +241,3 @@ function toFriendlyDocumentError(message: string): string {
   }
   return message;
 }
-
-export type { InterviewStatus };

@@ -3,9 +3,11 @@ import {
   DEFAULT_PUBLIC_CONFIG,
   DEFAULT_STT_PUBLIC_CONFIG,
   DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG,
+  DEFAULT_APPEARANCE_PUBLIC_CONFIG,
+  DEFAULT_QUESTION_CAPTURE_CONFIG,
 } from '../../shared/config/types';
 import { DEFAULT_CONTEXT_PUBLIC_CONFIG } from '../../shared/context/types';
-import { DEFAULT_AI_PUBLIC_CONFIG } from '../../shared/ai/types';
+import { DEFAULT_AI_PUBLIC_CONFIG, DEFAULT_GEMINI_MODEL, isLegacyGeminiModel } from '../../shared/ai/types';
 import { DEFAULT_VISUAL_PUBLIC_CONFIG } from '../../shared/visual-context/types';
 import { DEFAULT_VISUAL_INTELLIGENCE_CONFIG } from '../../shared/visual-intelligence/types';
 
@@ -57,6 +59,22 @@ export const AudioInputPublicConfigSchema = z
   })
   .strict();
 
+export const AppearancePublicConfigSchema = z
+  .object({
+    transparencyEnabled: z.boolean(),
+    intensity: z.enum(['subtle', 'medium', 'strong']),
+    blur: z.enum(['low', 'medium', 'high']),
+    contentClarity: z.enum(['glass', 'balanced', 'focused']),
+  })
+  .strict();
+
+export const QuestionCapturePublicConfigSchema = z
+  .object({
+    hotkey: z.string().min(3).max(80),
+    captureMode: z.enum(['region', 'active_window', 'full_screen']),
+  })
+  .strict();
+
 export const ContextBudgetSchema = z
   .object({
     maxTranscriptSegments: z.number().int().min(1).max(100),
@@ -98,7 +116,7 @@ export const ContextPublicConfigSchema = z
 
 export const AIPublicConfigSchema = z
   .object({
-    provider: z.enum(['openai', 'mock']),
+    provider: z.enum(['openai', 'mock', 'gemini']),
     model: z.string().min(1).max(128),
     responseMode: z.enum(['short', 'normal', 'detailed']),
     temperature: z.number().min(0).max(2),
@@ -162,6 +180,8 @@ export const PublicConfigSchema = z
     ai: AIPublicConfigSchema,
     visualContext: VisualPublicConfigSchema,
     visualIntelligence: VisualIntelligencePublicConfigSchema,
+    appearance: AppearancePublicConfigSchema,
+    questionCapture: QuestionCapturePublicConfigSchema,
   })
   .strict();
 
@@ -184,6 +204,8 @@ export const PublicConfigUpdateSchema = z
     retention: RetentionSettingsSchema.partial().optional(),
     stt: SttPublicConfigSchema.partial().optional(),
     audioInput: AudioInputPublicConfigSchema.partial().optional(),
+    appearance: AppearancePublicConfigSchema.partial().optional(),
+    questionCapture: QuestionCapturePublicConfigSchema.partial().optional(),
     context: z
       .object({
         budget: ContextBudgetSchema.partial().optional(),
@@ -285,10 +307,15 @@ function mergeWithDefaults(input: unknown): unknown {
         : {}),
     },
   };
-  const ai =
+  const aiMerged =
     raw.ai && typeof raw.ai === 'object'
       ? { ...DEFAULT_AI_PUBLIC_CONFIG, ...(raw.ai as object) }
-      : DEFAULT_AI_PUBLIC_CONFIG;
+      : { ...DEFAULT_AI_PUBLIC_CONFIG };
+  const ai =
+    typeof (aiMerged as { model?: string }).model === 'string' &&
+    isLegacyGeminiModel((aiMerged as { model: string }).model)
+      ? { ...aiMerged, model: DEFAULT_GEMINI_MODEL }
+      : aiMerged;
   const visualContext =
     raw.visualContext && typeof raw.visualContext === 'object'
       ? { ...DEFAULT_VISUAL_PUBLIC_CONFIG, ...(raw.visualContext as object) }
@@ -309,6 +336,14 @@ function mergeWithDefaults(input: unknown): unknown {
       ...(rawVi.vision && typeof rawVi.vision === 'object' ? (rawVi.vision as object) : {}),
     },
   };
+  const appearance =
+    raw.appearance && typeof raw.appearance === 'object'
+      ? { ...DEFAULT_APPEARANCE_PUBLIC_CONFIG, ...(raw.appearance as object) }
+      : DEFAULT_APPEARANCE_PUBLIC_CONFIG;
+  const questionCapture =
+    raw.questionCapture && typeof raw.questionCapture === 'object'
+      ? { ...DEFAULT_QUESTION_CAPTURE_CONFIG, ...(raw.questionCapture as object) }
+      : DEFAULT_QUESTION_CAPTURE_CONFIG;
 
   return {
     ...DEFAULT_PUBLIC_CONFIG,
@@ -323,6 +358,8 @@ function mergeWithDefaults(input: unknown): unknown {
     ai,
     visualContext,
     visualIntelligence,
+    appearance,
+    questionCapture,
   };
 }
 

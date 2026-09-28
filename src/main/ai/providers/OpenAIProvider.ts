@@ -1,5 +1,11 @@
 import OpenAI from 'openai';
-import type { AIChunk, AIProviderStatus, AIRequest } from '../../../shared/ai/types';
+import type {
+  AIChunk,
+  AIProviderCapabilities,
+  AIProviderStatus,
+  AIRequest,
+} from '../../../shared/ai/types';
+import { DEFAULT_OPENAI_CAPABILITIES } from '../../../shared/ai/types';
 import type { AIProvider } from '../../../core/ai/AIProvider';
 import {
   AppError,
@@ -171,6 +177,10 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
+  getCapabilities(): AIProviderCapabilities {
+    return { ...DEFAULT_OPENAI_CAPABILITIES };
+  }
+
   getStatus(): AIProviderStatus {
     return {
       provider: 'openai',
@@ -183,6 +193,29 @@ export class OpenAIProvider implements AIProvider {
 
   getLastFailureCategory(): OpenAiFailureCategory | null {
     return this.lastFailureCategory;
+  }
+
+  /**
+   * Minimal live probe — does not stream interview context.
+   */
+  async testConnection(): Promise<{ latencyMs: number }> {
+    if (!this.connected || !this.client) {
+      throw new AppError('PROVIDER', 'OpenAI provider is not connected');
+    }
+    const started = Date.now();
+    try {
+      await this.client.chat.completions.create({
+        model: this.model,
+        temperature: 0,
+        max_tokens: 8,
+        messages: [{ role: 'user', content: 'Reply with the single word: ok' }],
+      });
+      this.lastErrorCode = null;
+      this.lastFailureCategory = null;
+      return { latencyMs: Date.now() - started };
+    } catch (error) {
+      throw this.mapError(error);
+    }
   }
 
   async *generate(request: AIRequest): AsyncIterable<AIChunk> {

@@ -1,10 +1,13 @@
 export type {
   AIChunk,
   AIConfigStatus,
+  AIConnectionTestResult,
   AIEvent,
   AIEventType,
   AIOrchestratorStatus,
   AIPromptMessage,
+  AIProviderCapabilities,
+  AIProviderDiagnosticStatus,
   AIProviderId,
   AIProviderStatus,
   AIPublicConfig,
@@ -17,6 +20,16 @@ export type {
   ResponseMode,
 } from './types';
 export {
+  AI_GEMINI_CREDENTIAL_KEY,
   AI_OPENAI_CREDENTIAL_KEY,
   DEFAULT_AI_PUBLIC_CONFIG,
+  DEFAULT_GEMINI_CAPABILITIES,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_MOCK_CAPABILITIES,
+  DEFAULT_OPENAI_CAPABILITIES,
+  DEFAULT_OPENAI_MODEL,
+  LEGACY_GEMINI_MODELS,
+  defaultModelForProvider,
+  getAiCredentialKey,
+  isLegacyGeminiModel,
 } from './types';

@@ -233,6 +233,81 @@ export class AIOrchestrator {
     return finalState;
   }
 
+  /**
+   * Publish a completed answer produced outside the streaming provider path
+   * (e.g. Problem Intelligence after question capture).
+   */
+  publishExternalAnswer(input: {
+    questionId: string;
+    text: string;
+  }): AIResponseState {
+    if (this.activeRequestId) {
+      // Best-effort: clear active generation flag; caller should cancel first.
+      this.activeRequestId = null;
+    }
+    const config = this.getConfig();
+    const requestId = this.createId();
+    const response = this.responses.begin({
+      requestId,
+      questionId: input.questionId,
+      sessionId: this.getSessionId(),
+      correlationId: this.getCorrelationId(),
+      provider: config.provider,
+      model: config.model,
+      responseMode: config.responseMode,
+    });
+    this.responses.markGenerating();
+    this.emit({
+      type: 'ai.request.started',
+      requestId,
+      responseId: response.id,
+      questionId: input.questionId,
+      sessionId: response.sessionId,
+      correlationId: response.correlationId,
+      timestamp: Date.now(),
+      status: 'preparing',
+    });
+    this.emit({
+      type: 'ai.response.started',
+      requestId,
+      responseId: response.id,
+      questionId: input.questionId,
+      sessionId: response.sessionId,
+      correlationId: response.correlationId,
+      timestamp: Date.now(),
+      status: 'generating',
+    });
+    this.responses.appendChunk(input.text);
+    this.emit({
+      type: 'ai.response.chunk',
+      requestId,
+      responseId: response.id,
+      questionId: input.questionId,
+      sessionId: response.sessionId,
+      correlationId: response.correlationId,
+      timestamp: Date.now(),
+      sequence: 0,
+      textDelta: input.text,
+      status: 'generating',
+    });
+    const completed = this.responses.complete();
+    this.generatedQuestionIds.add(input.questionId);
+    if (completed) {
+      this.emit({
+        type: 'ai.response.completed',
+        requestId,
+        responseId: completed.id,
+        questionId: input.questionId,
+        sessionId: completed.sessionId,
+        correlationId: completed.correlationId,
+        timestamp: Date.now(),
+        status: 'completed',
+        metadata: completed.metadata,
+      });
+    }
+    return completed ?? this.responses.getCurrent()!;
+  }
+
   async cancel(requestId?: string): Promise<AIResponseState | null> {
     const active = this.activeRequestId;
     if (!active) {
@@ -420,6 +495,26 @@ export class AIOrchestrator {
         category:
           error instanceof AppError && error.details && typeof error.details.category === 'string'
             ? error.details.category
+            : undefined,
+        diagnosticCode:
+          error instanceof AppError &&
+          error.details &&
+          typeof error.details.diagnosticCode === 'string'
+            ? error.details.diagnosticCode
+            : undefined,
+        status:
+          error instanceof AppError && error.details && typeof error.details.status === 'number'
+            ? error.details.status
+            : undefined,
+        errorType:
+          error instanceof AppError &&
+          error.details &&
+          typeof error.details.errorType === 'string'
+            ? error.details.errorType
+            : undefined,
+        latencyMs:
+          error instanceof AppError && error.details && typeof error.details.latencyMs === 'number'
+            ? error.details.latencyMs
             : undefined,
         provider: request.metadata.provider,
         model: request.metadata.model,

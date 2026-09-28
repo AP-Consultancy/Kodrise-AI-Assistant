@@ -15,6 +15,12 @@ export function redactValue(key: string, value: unknown): unknown {
     if (/Bearer\s+[A-Za-z0-9\-._~+/]+=*/i.test(value)) {
       return value.replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [REDACTED]');
     }
+    if (/AIza[0-9A-Za-z_-]{10,}/.test(value)) {
+      return value.replace(/AIza[0-9A-Za-z_-]{10,}/g, '[REDACTED]');
+    }
+    if (/sk-[A-Za-z0-9_-]{10,}/.test(value)) {
+      return value.replace(/sk-[A-Za-z0-9_-]{10,}/g, '[REDACTED]');
+    }
   }
 
   return value;

@@ -1,4 +1,4 @@
-import { desktopCapturer, dialog, nativeImage, systemPreferences } from 'electron';
+import { desktopCapturer, dialog, nativeImage, screen, systemPreferences } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type {
@@ -178,7 +178,28 @@ export class ElectronVisualCaptureProvider implements VisualCaptureProvider {
           details: { code: 'invalid_dimensions' },
         });
       }
-      image = image.crop({ x, y, width, height });
+      const thumbSize = image.getSize();
+      // Map screen-space region → thumbnail pixels (desktopCapturer returns scaled thumbs).
+      const display =
+        screen.getAllDisplays().find((d) => d.id === Number(source.display_id)) ??
+        screen.getPrimaryDisplay();
+      const scaleX = thumbSize.width / Math.max(1, display.size.width);
+      const scaleY = thumbSize.height / Math.max(1, display.size.height);
+      const localX = x - display.bounds.x;
+      const localY = y - display.bounds.y;
+      const crop = {
+        x: clamp(Math.round(localX * scaleX), 0, Math.max(0, thumbSize.width - 1)),
+        y: clamp(Math.round(localY * scaleY), 0, Math.max(0, thumbSize.height - 1)),
+        width: clamp(Math.round(width * scaleX), 1, thumbSize.width),
+        height: clamp(Math.round(height * scaleY), 1, thumbSize.height),
+      };
+      if (crop.x + crop.width > thumbSize.width) {
+        crop.width = Math.max(1, thumbSize.width - crop.x);
+      }
+      if (crop.y + crop.height > thumbSize.height) {
+        crop.height = Math.max(1, thumbSize.height - crop.y);
+      }
+      image = image.crop(crop);
     }
 
     const size = image.getSize();
@@ -353,6 +374,10 @@ export class ElectronVisualCaptureProvider implements VisualCaptureProvider {
       });
     }
   }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function mapPlatform(platform: NodeJS.Platform): VisualCaptureCapabilities['platform'] {

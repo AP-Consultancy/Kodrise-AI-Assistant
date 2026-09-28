@@ -6,6 +6,8 @@ import type { CapturePolicyHost } from '../capture/CapturePolicyHost';
 import type { VisualContextHost } from '../visual/VisualContextHost';
 import type { InterviewHost } from '../interview/InterviewHost';
 import type { SimulationHost } from '../simulation/SimulationHost';
+import type { ProblemIntelligenceHost } from '../problem-intelligence/ProblemIntelligenceHost';
+import type { QuestionCaptureHost } from '../question-capture/QuestionCaptureHost';
 import type { Logger } from './logging';
 
 export interface AppServices {
@@ -17,6 +19,8 @@ export interface AppServices {
   visual: VisualContextHost;
   interview: InterviewHost;
   simulation: SimulationHost;
+  problemIntelligence: ProblemIntelligenceHost;
+  questionCapture: QuestionCaptureHost;
   logger: Logger;
 }
 

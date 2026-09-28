@@ -128,6 +128,13 @@ export const AICancelSchema = z
   .strict()
   .optional();
 
+export const AITestConnectionSchema = z
+  .object({
+    provider: z.enum(['openai', 'mock', 'gemini']).optional(),
+  })
+  .strict()
+  .optional();
+
 export const CaptureApplyPolicySchema = z
   .object({
     policy: z.enum(['STANDARD', 'PRIVACY_AWARE', 'DISABLED']),
@@ -187,6 +194,135 @@ export const InterviewRemoveDocumentSchema = z
 export const InterviewSubmitQuestionSchema = z
   .object({
     text: z.string().min(1).max(4000),
+  })
+  .strict();
+
+const ProgrammingLanguageSchema = z.enum([
+  'python',
+  'java',
+  'javascript',
+  'typescript',
+  'cpp',
+  'csharp',
+  'go',
+  'rust',
+  'kotlin',
+  'php',
+  'ruby',
+  'swift',
+  'unknown',
+  'auto',
+]);
+
+const SqlDialectSchema = z.enum([
+  'postgresql',
+  'mysql',
+  'sqlserver',
+  'oracle',
+  'sqlite',
+  'generic',
+  'unknown',
+  'auto',
+]);
+
+export const ProblemCreateSchema = z
+  .object({
+    text: z.string().min(1).max(20_000),
+    source: z
+      .enum(['manual', 'simulation', 'visual_capture', 'document', 'pasted_text'])
+      .optional(),
+    language: ProgrammingLanguageSchema.optional(),
+    sqlDialect: SqlDialectSchema.optional(),
+    existingCode: z.string().max(50_000).nullable().optional(),
+    existingSql: z.string().max(50_000).nullable().optional(),
+    schema: z.string().max(50_000).nullable().optional(),
+    sampleData: z.string().max(50_000).nullable().optional(),
+    sessionLanguage: ProgrammingLanguageSchema.nullable().optional(),
+  })
+  .strict();
+
+export const ProblemIdSchema = z
+  .object({
+    problemId: z.string().min(1).max(128),
+  })
+  .strict();
+
+export const ProblemSelectLanguageSchema = z
+  .object({
+    problemId: z.string().min(1).max(128),
+    language: z.enum([
+      'python',
+      'java',
+      'javascript',
+      'typescript',
+      'cpp',
+      'csharp',
+      'go',
+      'rust',
+      'kotlin',
+      'php',
+      'ruby',
+      'swift',
+      'unknown',
+    ]),
+  })
+  .strict();
+
+export const ProblemSelectDialectSchema = z
+  .object({
+    problemId: z.string().min(1).max(128),
+    dialect: z.enum([
+      'postgresql',
+      'mysql',
+      'sqlserver',
+      'oracle',
+      'sqlite',
+      'generic',
+      'unknown',
+    ]),
+  })
+  .strict();
+
+export const ProblemReviseSchema = z
+  .object({
+    problemId: z.string().min(1).max(128),
+    constraintDelta: z.string().min(1).max(4000),
+    language: ProgrammingLanguageSchema.optional(),
+    sqlDialect: SqlDialectSchema.optional(),
+  })
+  .strict();
+
+export const ProblemExecuteSchema = z
+  .object({
+    problemId: z.string().min(1).max(128),
+    mode: z.enum(['solution', 'existing', 'tests']).optional(),
+  })
+  .strict();
+
+export const ProblemCancelExecutionSchema = z
+  .object({
+    executionId: z.string().min(1).max(128).optional(),
+  })
+  .strict()
+  .optional();
+
+export const ProblemEventsLimitSchema = z
+  .object({
+    limit: z.number().int().min(1).max(500).optional(),
+  })
+  .strict()
+  .optional();
+
+export const QuestionCaptureUpdateSchema = z
+  .object({
+    hotkey: z.string().min(3).max(80).optional(),
+    captureMode: z.enum(['region', 'active_window', 'full_screen']).optional(),
+  })
+  .strict();
+
+export const QuestionCaptureSelectSchema = z
+  .object({
+    index: z.number().int().min(0).max(20),
   })
   .strict();
 

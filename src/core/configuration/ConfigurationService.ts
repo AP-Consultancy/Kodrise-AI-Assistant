@@ -1,6 +1,10 @@
 import { ConfigurationError } from '../../shared/errors';
 import type { PublicConfig } from '../../shared/config/types';
-import { DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG } from '../../shared/config/types';
+import {
+  DEFAULT_APPEARANCE_PUBLIC_CONFIG,
+  DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG,
+  DEFAULT_QUESTION_CAPTURE_CONFIG,
+} from '../../shared/config/types';
 import { createDefaultPublicConfig, parsePublicConfig, PublicConfigUpdateSchema } from './schema';
 
 export interface PublicConfigStore {
@@ -31,7 +35,11 @@ export class ConfigurationService {
       const loaded = this.store.load();
       const normalized = parsePublicConfig(loaded);
       this.config = normalized.success ? normalized.data : createDefaultPublicConfig();
-      if (!loaded.audioInput || loaded.audioInput.inputMode == null) {
+      const needsPersist =
+        !loaded.audioInput ||
+        loaded.audioInput.inputMode == null ||
+        (normalized.success && loaded.ai?.model !== this.config.ai.model);
+      if (needsPersist) {
         this.store.save(this.config);
       }
       return;
@@ -44,6 +52,12 @@ export class ConfigurationService {
     const clone = structuredClone(this.config);
     if (!clone.audioInput) {
       clone.audioInput = { ...DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG };
+    }
+    if (!clone.appearance) {
+      clone.appearance = { ...DEFAULT_APPEARANCE_PUBLIC_CONFIG };
+    }
+    if (!clone.questionCapture) {
+      clone.questionCapture = { ...DEFAULT_QUESTION_CAPTURE_CONFIG };
     }
     return clone;
   }
@@ -117,6 +131,16 @@ export class ConfigurationService {
           ...this.config.visualIntelligence.vision,
           ...parsedPatch.data.visualIntelligence?.vision,
         },
+      },
+      appearance: {
+        ...DEFAULT_APPEARANCE_PUBLIC_CONFIG,
+        ...this.config.appearance,
+        ...parsedPatch.data.appearance,
+      },
+      questionCapture: {
+        ...DEFAULT_QUESTION_CAPTURE_CONFIG,
+        ...this.config.questionCapture,
+        ...parsedPatch.data.questionCapture,
       },
       schemaVersion: 1,
     };

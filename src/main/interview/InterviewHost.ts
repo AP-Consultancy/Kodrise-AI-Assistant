@@ -559,6 +559,7 @@ export class InterviewHost {
     } catch (error) {
       this.errorCount += 1;
       this.uiState = 'error';
+      logAiFailureDiagnostic(error);
       this.errorMessage = friendlyAiError(error);
       this.broadcast();
       throw error;
@@ -603,6 +604,7 @@ export class InterviewHost {
         } else if (event.type === 'ai.response.error') {
           this.errorCount += 1;
           this.uiState = 'error';
+          logAiFailureDiagnostic(event.error);
           this.errorMessage = friendlyAiError(event.error);
           this.broadcast();
         } else if (event.type === 'ai.response.cancelled') {
@@ -644,36 +646,116 @@ export class InterviewHost {
   }
 }
 
-function friendlyAiError(error: unknown): string {
-  const message =
-    error && typeof error === 'object' && 'message' in error
-      ? String((error as { message: unknown }).message)
-      : error instanceof Error
-        ? error.message
-        : 'AI generation failed';
-  const details =
-    error instanceof AppError && error.details && typeof error.details === 'object'
-      ? (error.details as Record<string, unknown>)
-      : null;
-  const category = typeof details?.category === 'string' ? details.category : '';
-
-  if (category === 'quota_billing' || /quota|billing|insufficient/i.test(message)) {
-    return 'AI generation is currently unavailable because the OpenAI account quota or billing limit was reached.';
+function extractAiErrorDetails(error: unknown): {
+  message: string;
+  code?: string;
+  category?: string;
+  diagnosticCode?: string;
+  status?: number | null;
+  provider?: string;
+  model?: string;
+  errorType?: string;
+  latencyMs?: number | null;
+  providerCode?: string | null;
+} {
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    const message =
+      typeof record.message === 'string'
+        ? record.message
+        : error instanceof Error
+          ? error.message
+          : 'AI generation failed';
+    const details =
+      record.details && typeof record.details === 'object'
+        ? (record.details as Record<string, unknown>)
+        : error instanceof AppError && error.details
+          ? error.details
+          : null;
+    return {
+      message,
+      code: typeof record.code === 'string' ? record.code : error instanceof AppError ? error.code : undefined,
+      category: details && typeof details.category === 'string' ? details.category : undefined,
+      diagnosticCode:
+        details && typeof details.diagnosticCode === 'string' ? details.diagnosticCode : undefined,
+      status: details && typeof details.status === 'number' ? details.status : null,
+      provider: details && typeof details.provider === 'string' ? details.provider : undefined,
+      model: details && typeof details.model === 'string' ? details.model : undefined,
+      errorType: details && typeof details.errorType === 'string' ? details.errorType : undefined,
+      latencyMs: details && typeof details.latencyMs === 'number' ? details.latencyMs : null,
+      providerCode:
+        details && typeof details.providerCode === 'string' ? details.providerCode : null,
+    };
   }
-  if (category === 'rate_limit' || /rate.?limit|429/i.test(message)) {
+  return {
+    message: error instanceof Error ? error.message : 'AI generation failed',
+  };
+}
+
+function logAiFailureDiagnostic(error: unknown): void {
+  const info = extractAiErrorDetails(error);
+  logger.info('interview.ai.error.diagnostic', {
+    provider: info.provider ?? null,
+    model: info.model ?? null,
+    code: info.code ?? null,
+    category: info.category ?? null,
+    diagnosticCode: info.diagnosticCode ?? null,
+    status: info.status ?? null,
+    providerCode: info.providerCode ?? null,
+    errorType: info.errorType ?? null,
+    message: info.message,
+    latencyMs: info.latencyMs ?? null,
+  });
+}
+
+/**
+ * Friendly product copy for the interview UI.
+ * Raw provider diagnostics are logged separately — never surface secrets here.
+ */
+function friendlyAiError(error: unknown): string {
+  const info = extractAiErrorDetails(error);
+  const message = info.message;
+  const category = info.category ?? '';
+  const diagnostic = info.diagnosticCode ?? '';
+
+  if (
+    diagnostic === 'QUOTA_EXCEEDED' ||
+    category === 'quota_billing' ||
+    /quota|billing|insufficient/i.test(message)
+  ) {
+    return 'AI generation is currently unavailable because the account quota or billing limit was reached.';
+  }
+  if (
+    diagnostic === 'RATE_LIMITED' ||
+    category === 'rate_limit' ||
+    /rate.?limit|429/i.test(message)
+  ) {
     return 'AI generation is temporarily rate-limited. Try again in a moment.';
   }
-  if (category === 'authentication' || /auth|401|403|api.?key|credential/i.test(message)) {
-    return 'AI generation is currently unavailable. Check your OpenAI API key in Settings.';
+  if (
+    diagnostic === 'INVALID_API_KEY' ||
+    diagnostic === 'UNAUTHORIZED' ||
+    diagnostic === 'FORBIDDEN' ||
+    category === 'authentication' ||
+    category === 'missing_credential' ||
+    /auth|401|403|api.?key|credential|not configured/i.test(message)
+  ) {
+    return 'AI generation is currently unavailable. Check your API key in Settings.';
   }
-  if (category === 'missing_credential' || /not configured/i.test(message)) {
-    return 'AI generation is currently unavailable. Add your OpenAI API key in Settings.';
-  }
-  if (category === 'invalid_request') {
+  if (diagnostic === 'INVALID_REQUEST' || category === 'invalid_request') {
     return 'AI generation failed because the request configuration was rejected. Check the AI model settings.';
   }
-  if (category === 'network' || /network/i.test(message)) {
+  if (
+    diagnostic === 'NETWORK_ERROR' ||
+    diagnostic === 'TIMEOUT' ||
+    category === 'network' ||
+    category === 'timeout' ||
+    /network|timeout/i.test(message)
+  ) {
     return 'AI generation failed due to a network problem. Check your connection and try again.';
+  }
+  if (diagnostic === 'MODEL_UNAVAILABLE' || category === 'model_unavailable') {
+    return 'AI generation is currently unavailable. Update the AI model in Settings and try again.';
   }
   return 'AI generation is currently unavailable. You can try Regenerate in a moment.';
 }

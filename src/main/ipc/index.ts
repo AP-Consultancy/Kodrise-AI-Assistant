@@ -16,6 +16,9 @@ import { registerCapturePolicyIpcHandlers } from './capturePolicyHandlers';
 import { registerVisualIpcHandlers } from './visualHandlers';
 import { registerInterviewIpcHandlers } from './interviewHandlers';
 import { registerSimulationIpcHandlers } from './simulationHandlers';
+import { registerWindowIpcHandlers } from './windowHandlers';
+import { registerProblemIntelligenceIpcHandlers } from './problemIntelligenceHandlers';
+import { registerQuestionCaptureIpcHandlers } from './questionCaptureHandlers';
 
 const HANDLER_GROUPS: Array<{ name: string; register: () => void }> = [
   { name: 'app', register: registerAppIpcHandlers },
@@ -33,6 +36,9 @@ const HANDLER_GROUPS: Array<{ name: string; register: () => void }> = [
   { name: 'visual', register: registerVisualIpcHandlers },
   { name: 'interview', register: registerInterviewIpcHandlers },
   { name: 'simulation', register: registerSimulationIpcHandlers },
+  { name: 'problemIntelligence', register: registerProblemIntelligenceIpcHandlers },
+  { name: 'questionCapture', register: registerQuestionCaptureIpcHandlers },
+  { name: 'window', register: registerWindowIpcHandlers },
 ];
 
 /**

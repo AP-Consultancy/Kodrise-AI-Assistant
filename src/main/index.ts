@@ -12,14 +12,18 @@ import { setAppServices, getAppServices } from './services/appContext';
 import { FilePublicConfigStore } from './services/config/FilePublicConfigStore';
 import { createDefaultIdGenerator } from '../shared/session/types';
 import { applyContentSecurityPolicy } from './security/csp';
-import { STT_DEEPGRAM_CREDENTIAL_KEY, AI_OPENAI_CREDENTIAL_KEY } from '../shared/config/types';
+import { STT_DEEPGRAM_CREDENTIAL_KEY, AI_OPENAI_CREDENTIAL_KEY, AI_GEMINI_CREDENTIAL_KEY } from '../shared/config/types';
 import { createSttProvider } from './transcription/provider/createSttProvider';
 import { createAiProvider } from './ai/createAiProvider';
+import { getAiCredentialKey } from '../shared/ai/types';
 import { CapturePolicyHost } from './capture/CapturePolicyHost';
 import { VisualContextHost } from './visual/VisualContextHost';
 import { InterviewHost } from './interview/InterviewHost';
 import { SimulationHost } from './simulation/SimulationHost';
+import { ProblemIntelligenceHost } from './problem-intelligence/ProblemIntelligenceHost';
+import { QuestionCaptureHost } from './question-capture/QuestionCaptureHost';
 import type { CapturePolicyId } from '../shared/capture-policy/types';
+import { DEFAULT_QUESTION_CAPTURE_CONFIG } from '../shared/question-capture/types';
 
 if (started) {
   app.quit();
@@ -75,7 +79,12 @@ if (started) {
           }
         },
         hasSttCredential: () => credentials.hasCredential(STT_DEEPGRAM_CREDENTIAL_KEY),
-        hasAiCredential: () => credentials.hasCredential(AI_OPENAI_CREDENTIAL_KEY),
+        hasAiCredential: async () => {
+          const provider = config.getPublic().ai.provider;
+          const key = getAiCredentialKey(provider);
+          if (!key) return true;
+          return credentials.hasCredential(key);
+        },
         createSttProvider: (sttConfig) =>
           createSttProvider({
             config: sttConfig,
@@ -84,7 +93,14 @@ if (started) {
         createAiProvider: (aiConfig) =>
           createAiProvider({
             config: aiConfig,
-            getApiKey: () => credentials.getCredential(AI_OPENAI_CREDENTIAL_KEY),
+            getApiKey: async () => {
+              const key = getAiCredentialKey(aiConfig.provider);
+              if (!key) return null;
+              if (key === AI_GEMINI_CREDENTIAL_KEY) {
+                return credentials.getCredential(AI_GEMINI_CREDENTIAL_KEY);
+              }
+              return credentials.getCredential(AI_OPENAI_CREDENTIAL_KEY);
+            },
           }),
         sessionId: () => sessionHost.getManager().getStatus().sessionId,
         correlationId: () => sessionHost.getManager().getStatus().correlationId,
@@ -128,6 +144,24 @@ if (started) {
         audio: audioHost,
         config,
       });
+      const problemIntelligence = new ProblemIntelligenceHost({
+        getAIProvider: async () => audioHost.ensureAiProvider(),
+        sessionId: () => sessionHost.getManager().getStatus().sessionId,
+        correlationId: () => sessionHost.getManager().getStatus().correlationId,
+      });
+      const questionCapture = new QuestionCaptureHost({
+        getConfig: () =>
+          config.getPublic().questionCapture ?? { ...DEFAULT_QUESTION_CAPTURE_CONFIG },
+        persistConfig: (patch) => {
+          config.update({ questionCapture: patch });
+        },
+        visual: () => getAppServices().visual,
+        interview: () => getAppServices().interview,
+        problemIntelligence: () => getAppServices().problemIntelligence,
+        audio: () => getAppServices().audio,
+        isInterviewLive: () => getAppServices().interview.getStatus().phase === 'live',
+        isInterviewPaused: () => Boolean(getAppServices().interview.getStatus().paused),
+      });
       setAppServices({
         config,
         credentials,
@@ -137,6 +171,8 @@ if (started) {
         visual,
         interview,
         simulation,
+        problemIntelligence,
+        questionCapture,
         logger,
       });
 
@@ -144,6 +180,18 @@ if (started) {
       audioHost.setOnQuestionClassified(async (question) => {
         await visual.analyzeForQuestion(question);
       });
+
+      // Clear problem / capture sessions when the foundation session stops.
+      sessionHost.getManager().subscribe((event) => {
+        if (event.type !== 'status-changed') return;
+        const state = sessionHost.getManager().getStatus().state;
+        if (state === 'idle' || state === 'stopping') {
+          problemIntelligence.resetForSessionStop();
+          questionCapture.resetForSessionStop();
+        }
+      });
+
+      questionCapture.registerHotkey();
 
       registerAllIpcHandlers();
       // Explicit second bind — document picker must remain registered.
@@ -167,6 +215,8 @@ if (started) {
         void visual.onSessionStop();
         interview.dispose();
         simulation.dispose();
+        problemIntelligence.dispose();
+        questionCapture.dispose();
         audioHost.dispose();
         sessionHost.dispose();
         capturePolicy.dispose();

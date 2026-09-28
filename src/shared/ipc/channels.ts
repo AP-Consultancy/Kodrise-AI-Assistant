@@ -56,6 +56,7 @@ export const IpcChannels = {
   AI_CANCEL: 'ai:cancel',
   AI_CLEAR_RESPONSE: 'ai:clear-response',
   AI_GET_CURRENT_RESPONSE: 'ai:get-current-response',
+  AI_TEST_CONNECTION: 'ai:test-connection',
   CAPTURE_GET_PLATFORM: 'capture:get-platform',
   CAPTURE_GET_CAPABILITIES: 'capture:get-capabilities',
   CAPTURE_GET_STATUS: 'capture:get-status',
@@ -102,6 +103,28 @@ export const IpcChannels = {
   SIMULATION_RESTART: 'simulation:restart',
   SIMULATION_END: 'simulation:end',
   SIMULATION_UPDATE_CONFIG: 'simulation:update-config',
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
+  WINDOW_IS_MAXIMIZED: 'window:is-maximized',
+  PROBLEM_GET_STATUS: 'problem:get-status',
+  PROBLEM_GET_CURRENT: 'problem:get-current',
+  PROBLEM_GET_RESULT: 'problem:get-result',
+  PROBLEM_LIST: 'problem:list',
+  PROBLEM_GET_EVENTS: 'problem:get-events',
+  PROBLEM_CREATE: 'problem:create',
+  PROBLEM_SELECT_LANGUAGE: 'problem:select-language',
+  PROBLEM_SELECT_DIALECT: 'problem:select-dialect',
+  PROBLEM_REVISE: 'problem:revise',
+  PROBLEM_EXECUTE: 'problem:execute',
+  PROBLEM_CANCEL_EXECUTION: 'problem:cancel-execution',
+  PROBLEM_RESET: 'problem:reset',
+  QUESTION_CAPTURE_GET_STATUS: 'question-capture:get-status',
+  QUESTION_CAPTURE_UPDATE_CONFIG: 'question-capture:update-config',
+  QUESTION_CAPTURE_START: 'question-capture:start',
+  QUESTION_CAPTURE_CANCEL: 'question-capture:cancel',
+  QUESTION_CAPTURE_SELECT_QUESTION: 'question-capture:select-question',
+  QUESTION_CAPTURE_REGISTER_HOTKEY: 'question-capture:register-hotkey',
 } as const;
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels];
@@ -147,6 +170,9 @@ export const IpcEvents = {
   VISUAL_INTELLIGENCE_UPDATED: 'visual:intelligence-updated',
   INTERVIEW_STATUS_CHANGED: 'interview:status-changed',
   SIMULATION_STATUS_CHANGED: 'simulation:status-changed',
+  WINDOW_MAXIMIZED_CHANGED: 'window:maximized-changed',
+  PROBLEM_EVENT: 'problem:event',
+  QUESTION_CAPTURE_EVENT: 'question-capture:event',
 } as const;
 
 export type IpcEvent = (typeof IpcEvents)[keyof typeof IpcEvents];

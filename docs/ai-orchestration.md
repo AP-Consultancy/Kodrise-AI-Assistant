@@ -10,13 +10,15 @@
 
 | Choice | Detail |
 |--------|--------|
-| Provider | **OpenAI** |
-| SDK | `openai` (main process only) |
-| Why | Streaming chat completions, AbortController cancel, API-key auth fits existing CredentialVault pattern used by Deepgram STT |
-| Auth | CredentialVault key `ai.openai.apiKey` — never returned to renderer |
-| Limitations | Network required; rate limits; model allowlist is config-driven; no vision/tools in this phase |
+| Providers | **OpenAI**, **Gemini**, **Mock** |
+| OpenAI SDK | `openai` (main process only) |
+| Gemini SDK | `@google/genai` (main process only) |
+| Auth | CredentialVault — `ai.openai.apiKey` / `ai.gemini.apiKey` — never returned to renderer |
+| Limitations | Network required for live providers; rate limits; model is config-driven; no vision/tools in answer generation for this phase |
 
 `mock` provider is available for offline tests and diagnostics.
+
+See [ai-providers.md](./ai-providers.md) for Gemini setup, capabilities, and troubleshooting.
 
 ---
 

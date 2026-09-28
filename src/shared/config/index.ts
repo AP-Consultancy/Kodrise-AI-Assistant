@@ -1,5 +1,9 @@
 export type {
   AiProviderId,
+  AppearanceBlurLevel,
+  AppearanceContentClarity,
+  AppearanceIntensity,
+  AppearancePublicConfig,
   CaptureModePreference,
   CapturePreferences,
   FeatureFlags,
@@ -10,6 +14,7 @@ export type {
   SttPublicConfig,
 } from './types';
 export {
+  DEFAULT_APPEARANCE_PUBLIC_CONFIG,
   DEFAULT_PUBLIC_CONFIG,
   DEFAULT_STT_PUBLIC_CONFIG,
   STT_DEEPGRAM_CREDENTIAL_KEY,

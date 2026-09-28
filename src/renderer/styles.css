@@ -1,16 +1,218 @@
 :root {
-  color-scheme: light;
-  --bg: #f4f6f8;
-  --surface: #ffffff;
-  --text: #15202b;
-  --muted: #5b6b7c;
-  --border: #d7dee7;
-  --accent: #0b6e4f;
-  --accent-soft: #e6f4ef;
-  --ok: #1b7f4e;
-  --fail: #b42318;
-  --font: "Segoe UI", "Helvetica Neue", sans-serif;
-  --mono: "Cascadia Mono", "Consolas", monospace;
+  color-scheme: dark;
+
+  /* Transparent canvas — no opaque base fill */
+  --window-inset: 10px;
+  --shell-radius: 20px;
+
+  --atmosphere-a: rgba(124, 140, 255, 0.08);
+  --atmosphere-b: rgba(255, 255, 255, 0.035);
+  --atmosphere-c: rgba(90, 110, 180, 0.04);
+
+  /*
+   * Material hierarchy (2O.3)
+   * 1 Ambient  — outer shell / empty space (desktop remains visible)
+   * 2 Navigation — top bar / sidebar
+   * 3 Content  — conversation reading zone (desktop becomes atmosphere)
+   * 4 Focus    — composer / pause / critical controls
+   */
+  --material-ambient: rgba(15, 17, 20, 0.2);
+  --material-nav: rgba(18, 20, 24, 0.48);
+  --material-content: rgba(16, 18, 22, 0.7);
+  --material-focus: rgba(20, 23, 28, 0.84);
+
+  --blur-nav: blur(30px) saturate(130%);
+  --blur-content: blur(28px) saturate(120%);
+  --blur-focus: blur(35px) saturate(130%);
+
+  /* Legacy aliases mapped onto hierarchy */
+  --glass-shell: var(--material-ambient);
+  --glass-sidebar: var(--material-nav);
+  --glass-topbar: var(--material-nav);
+  --glass-composer: var(--material-focus);
+  --glass-strong: var(--material-focus);
+
+  --material-thin: rgba(255, 255, 255, 0.035);
+  --material-regular: rgba(255, 255, 255, 0.055);
+  --material-thick: rgba(255, 255, 255, 0.075);
+  --material-ultra-thick: rgba(255, 255, 255, 0.1);
+  --material-selected: rgba(255, 255, 255, 0.09);
+  --material-hover: rgba(255, 255, 255, 0.07);
+  --material-inset: rgba(0, 0, 0, 0.28);
+
+  --border: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --highlight: rgba(255, 255, 255, 0.05);
+  --rim: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+
+  --text-primary: rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.68);
+  --text-muted: rgba(255, 255, 255, 0.48);
+  --text-faint: rgba(255, 255, 255, 0.34);
+
+  --accent: #7c8cff;
+  --accent-soft: rgba(124, 140, 255, 0.16);
+  --accent-strong: #9aa6ff;
+  --accent-ink: #0a0b10;
+
+  --success: #3dcf8e;
+  --success-soft: rgba(61, 207, 142, 0.12);
+  --warning: #e6b84d;
+  --warning-soft: rgba(230, 184, 77, 0.12);
+  --error: #f07178;
+  --error-soft: rgba(240, 113, 120, 0.12);
+
+  --blur-material: var(--blur-nav);
+  --blur-soft: blur(20px) saturate(125%);
+  --blur-composer: var(--blur-focus);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-composer: 22px;
+  --radius-reading: 18px;
+
+  --shadow-float:
+    var(--rim),
+    0 12px 40px rgba(0, 0, 0, 0.25);
+  --shadow-soft:
+    var(--rim),
+    0 8px 28px rgba(0, 0, 0, 0.2);
+  --shadow-lift:
+    var(--rim),
+    0 18px 50px rgba(0, 0, 0, 0.25);
+  --shadow-reading:
+    var(--rim),
+    0 10px 36px rgba(0, 0, 0, 0.18);
+
+  --font:
+    "SF Pro Display", "SF Pro Text", "Segoe UI Variable Display",
+    "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+  --mono: "SF Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  --type-meta: 0.8125rem;
+  --type-body: 1.0625rem;
+  --type-answer: 1.0625rem;
+  --type-question: clamp(1.35rem, 2.2vw, 1.7rem);
+  --type-section: clamp(1.25rem, 2vw, 1.5rem);
+  --type-hero: clamp(2rem, 3.4vw, 2.35rem);
+
+  --topbar-height: 3.25rem;
+  --sidebar-width: 14.5rem;
+  --composer-height: 5.5rem;
+  /* Editorial reading measure — 720–820px */
+  --content-max: 48.75rem;
+  --reading-max: 48.75rem;
+  --motion: 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 150ms ease;
+
+  --background: transparent;
+  --surface: var(--material-regular);
+  --surface-elevated: var(--material-thick);
+  --surface-secondary: var(--material-thin);
+  --surface-hover: var(--material-hover);
+  --surface-glass: var(--glass-shell);
+  --surface-answer: transparent;
+  --bg: transparent;
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --ok: var(--success);
+  --fail: var(--error);
+  --accent-soft-legacy: var(--accent-soft);
+  --shadow-sm: var(--rim);
+  --shadow-md: var(--shadow-soft);
+  --shadow-lg: var(--shadow-float);
+}
+
+/* Content Clarity → conversation reading material (desktop becomes atmosphere) */
+html[data-clarity='glass'] {
+  --material-content: rgba(16, 18, 22, 0.55);
+  --blur-content: blur(24px) saturate(118%);
+}
+
+html[data-clarity='balanced'] {
+  --material-content: rgba(16, 18, 22, 0.7);
+  --blur-content: blur(28px) saturate(120%);
+}
+
+html[data-clarity='focused'] {
+  --material-content: rgba(16, 18, 22, 0.82);
+  --blur-content: blur(32px) saturate(125%);
+}
+
+/* Intensity still tunes ambient + navigation chrome */
+html[data-intensity='subtle'] {
+  --material-ambient: rgba(15, 17, 20, 0.14);
+  --material-nav: rgba(18, 20, 24, 0.4);
+  --material-focus: rgba(20, 23, 28, 0.78);
+}
+
+html[data-intensity='medium'] {
+  --material-ambient: rgba(15, 17, 20, 0.2);
+  --material-nav: rgba(18, 20, 24, 0.48);
+  --material-focus: rgba(20, 23, 28, 0.84);
+}
+
+html[data-intensity='strong'] {
+  --material-ambient: rgba(15, 17, 20, 0.28);
+  --material-nav: rgba(18, 20, 24, 0.55);
+  --material-focus: rgba(20, 23, 28, 0.88);
+}
+
+html[data-blur='low'] {
+  --blur-nav: blur(14px) saturate(118%);
+  --blur-content: blur(16px) saturate(115%);
+  --blur-focus: blur(18px) saturate(120%);
+  --blur-soft: blur(10px) saturate(115%);
+}
+
+html[data-blur='medium'] {
+  --blur-nav: blur(22px) saturate(125%);
+  --blur-content: blur(24px) saturate(118%);
+  --blur-focus: blur(28px) saturate(125%);
+  --blur-soft: blur(14px) saturate(120%);
+}
+
+html[data-blur='high'] {
+  --blur-nav: blur(30px) saturate(130%);
+  --blur-content: blur(28px) saturate(120%);
+  --blur-focus: blur(35px) saturate(130%);
+  --blur-soft: blur(20px) saturate(125%);
+}
+
+html[data-clarity='glass'][data-blur='high'] {
+  --blur-content: blur(24px) saturate(118%);
+}
+
+html[data-clarity='focused'][data-blur='high'] {
+  --blur-content: blur(32px) saturate(125%);
+}
+
+/* Fallback when user turns transparency off — still hierarchical, not flat black */
+html[data-transparency='off'] {
+  --material-ambient: rgba(12, 14, 18, 0.94);
+  --material-nav: rgba(16, 18, 22, 0.96);
+  --material-content: rgba(14, 16, 20, 0.98);
+  --material-focus: rgba(20, 22, 28, 0.99);
+}
+
+html[data-transparency='off'] .app-frame {
+  padding: 0;
+}
+
+html[data-transparency='off'] .app-shell {
+  border-radius: 0;
+  border: 0;
+}
+
+html[data-maximized='true'] .app-frame {
+  padding: 0;
+}
+
+html[data-maximized='true'] .app-shell {
+  border-radius: 0;
 }
 
 * {
@@ -22,22 +224,210 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
+  height: 100%;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 body {
   font-family: var(--font);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  text-underline-position: from-font;
+  text-decoration-skip-ink: auto;
+  overflow: hidden;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Outer transparent inset — desktop must show here */
+.app-frame {
+  flex: 1;
+  min-height: 0;
+  padding: var(--window-inset);
+  display: flex;
+  background: transparent;
+}
+
+.app-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--shell-radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--material-ambient);
+  backdrop-filter: var(--blur-nav);
+  -webkit-backdrop-filter: var(--blur-nav);
+  box-shadow: var(--shadow-float);
+  position: relative;
+}
+
+/* Partially transparent atmosphere INSIDE the shell only */
+.app-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.55;
   background:
-    radial-gradient(circle at top left, #e8f2ec 0%, transparent 42%),
-    linear-gradient(180deg, #f7f9fb 0%, var(--bg) 100%);
-  color: var(--text);
+    radial-gradient(circle at 15% 10%, var(--atmosphere-a), transparent 35%),
+    radial-gradient(circle at 85% 90%, var(--atmosphere-b), transparent 40%),
+    radial-gradient(ellipse 70% 45% at 50% 35%, var(--atmosphere-c), transparent 55%);
+}
+
+.app-shell > *:not(.app-atmosphere) {
+  position: relative;
+  z-index: 1;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.glass {
+  background: var(--material-nav);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: var(--blur-nav);
+  -webkit-backdrop-filter: var(--blur-nav);
+  box-shadow: var(--rim);
+}
+
+.glass-strong {
+  background: var(--material-focus);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: var(--blur-focus);
+  -webkit-backdrop-filter: var(--blur-focus);
+  box-shadow: var(--rim);
+}
+
+/* Single editorial reading surface — not a card grid */
+.reading-zone {
+  width: min(100%, var(--reading-max));
+  margin: 0 auto;
+  padding: 1.35rem 1.5rem 1.5rem;
+  border-radius: var(--radius-reading);
+  background: var(--material-content);
+  backdrop-filter: var(--blur-content);
+  -webkit-backdrop-filter: var(--blur-content);
+  box-shadow: var(--shadow-reading);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  font-weight: 560;
+  letter-spacing: -0.025em;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
 }
 
 button {
-  font: inherit;
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 code {
   font-family: var(--mono);
   font-size: 0.92em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 1.15rem;
+  font-weight: 600;
+  transition: background var(--motion-fast), transform var(--motion-fast);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.btn-secondary {
+  border: 1px solid var(--border);
+  background: var(--material-thin);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.85rem;
+  font-weight: 500;
+  backdrop-filter: var(--blur-soft);
+  -webkit-backdrop-filter: var(--blur-soft);
+  transition: background var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--material-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.btn-tertiary {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.35rem 0.5rem;
+  font-weight: 500;
+}
+
+.btn-tertiary:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --material-ambient: rgba(18, 20, 26, 0.9);
+    --material-nav: rgba(22, 24, 30, 0.94);
+    --material-content: rgba(16, 18, 22, 0.96);
+    --material-focus: rgba(24, 26, 32, 0.98);
+  }
 }

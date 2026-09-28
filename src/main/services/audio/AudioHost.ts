@@ -43,10 +43,14 @@ import type {
 } from '../../../shared/context/types';
 import type {
   AIConfigStatus,
+  AIConnectionTestResult,
   AIEvent,
   AIOrchestratorStatus,
   AIResponseState,
 } from '../../../shared/ai/types';
+import { AppError, toSafeErrorPayload } from '../../../shared/errors';
+import { GeminiProvider } from '../../ai/providers/GeminiProvider';
+import { OpenAIProvider } from '../../ai/providers/OpenAIProvider';
 import { IpcEvents } from '../../../shared/ipc/channels';
 import { AudioCaptureError, AudioPermissionError } from '../../../shared/errors';
 import { logger } from '../logging';
@@ -88,9 +92,11 @@ export class AudioHost {
   private unsubscribers: Array<() => void> = [];
   private readonly getSttConfig: () => SttPublicConfig;
   private readonly getAudioInputConfig: () => AudioInputPublicConfig;
+  private readonly getAiConfig: () => AIPublicConfig;
   private readonly persistAudioInputConfig: ((patch: Partial<AudioInputPublicConfig>) => void) | null;
   private readonly hasSttCredential: () => Promise<boolean>;
   private readonly createSttProvider: ((config: SttPublicConfig) => STTProvider) | null;
+  private readonly createAiProvider: ((config: AIPublicConfig) => AIProvider) | null;
   private readonly getVisualContextSnapshot: () => import('../../../shared/visual-context/types').VisualContextSnapshot | null;
   private readonly getInterviewDocuments: () => import('../../../shared/context/types').InterviewDocumentContext | null;
   private onQuestionClassified:
@@ -98,14 +104,18 @@ export class AudioHost {
     | null = null;
   /** When false, Deepgram finals are ignored for question detection (simulation isolation). */
   private microphoneQuestionIngest = true;
+  /** When true, the next question.classified skips maybeAutoGenerate once. */
+  private suppressNextAutoGenerate = false;
 
   constructor(deps: AudioHostDeps = {}) {
     this.getSttConfig = deps.getSttConfig ?? (() => ({ ...DEFAULT_STT_PUBLIC_CONFIG, provider: 'mock' }));
     this.getAudioInputConfig =
       deps.getAudioInputConfig ?? (() => ({ ...DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG }));
+    this.getAiConfig = deps.getAiConfig ?? (() => structuredClone(DEFAULT_AI_PUBLIC_CONFIG));
     this.persistAudioInputConfig = deps.persistAudioInputConfig ?? null;
     this.hasSttCredential = deps.hasSttCredential ?? (async () => true);
     this.createSttProvider = deps.createSttProvider ?? null;
+    this.createAiProvider = deps.createAiProvider ?? null;
     this.getVisualContextSnapshot = deps.getVisualContextSnapshot ?? (() => null);
     this.getInterviewDocuments = deps.getInterviewDocuments ?? (() => null);
     const initialAudio = this.getAudioInputConfig();
@@ -137,9 +147,9 @@ export class AudioHost {
       idGenerator: createDefaultIdGenerator(),
       sessionId: deps.sessionId,
       correlationId: deps.correlationId,
-      getConfig: deps.getAiConfig ?? (() => structuredClone(DEFAULT_AI_PUBLIC_CONFIG)),
+      getConfig: this.getAiConfig,
       isConfigured: deps.hasAiCredential ?? (async () => false),
-      createProvider: deps.createAiProvider,
+      createProvider: this.createAiProvider ?? undefined,
       getQuestion: (questionId) =>
         this.questions.getRecent(50).find((item) => item.id === questionId) ??
         (this.questions.getCurrent()?.id === questionId ? this.questions.getCurrent() : null),
@@ -197,14 +207,18 @@ export class AudioHost {
                 interviewDocuments: this.getInterviewDocuments(),
               });
               if (snapshot) {
-                void this.ai
-                  .maybeAutoGenerate({ question, context: snapshot })
-                  .catch((error) => {
-                    logger.warn('ai.auto_generate.failed', {
-                      questionId: question.id,
-                      message: error instanceof Error ? error.message : 'unknown',
+                if (this.suppressNextAutoGenerate) {
+                  this.suppressNextAutoGenerate = false;
+                } else {
+                  void this.ai
+                    .maybeAutoGenerate({ question, context: snapshot })
+                    .catch((error) => {
+                      logger.warn('ai.auto_generate.failed', {
+                        questionId: question.id,
+                        message: error instanceof Error ? error.message : 'unknown',
+                      });
                     });
-                  });
+                }
               }
             })();
           }
@@ -326,6 +340,14 @@ export class AudioHost {
 
   processManualQuestion(text: string): DetectedQuestion[] {
     return this.questions.processManualText(text);
+  }
+
+  suppressNextAiAutoGenerate(): void {
+    this.suppressNextAutoGenerate = true;
+  }
+
+  publishExternalAnswer(questionId: string, text: string) {
+    return this.ai.publishExternalAnswer({ questionId, text });
   }
 
   /**
@@ -746,6 +768,143 @@ export class AudioHost {
 
   async getAiConfigStatus(): Promise<AIConfigStatus> {
     return this.ai.getConfigStatus();
+  }
+
+  /** Shared AI provider instance for Problem Intelligence (same factory as interview AI). */
+  async ensureAiProvider(): Promise<AIProvider> {
+    return this.ai.ensureProvider();
+  }
+
+  async testAiConnection(): Promise<AIConnectionTestResult> {
+    const config = await this.getAiConfigStatus();
+    const providerId = config.provider;
+    const model = config.model;
+
+    if (providerId === 'mock') {
+      return {
+        success: true,
+        provider: 'mock',
+        status: 'pass',
+        message: 'Mock AI is ready (no network).',
+        category: null,
+        diagnosticCode: null,
+        latencyMs: 0,
+        model,
+      };
+    }
+
+    if (!config.configured) {
+      return {
+        success: false,
+        provider: providerId,
+        status: 'not_configured',
+        message:
+          providerId === 'gemini'
+            ? 'Gemini API key is not configured.'
+            : 'OpenAI API key is not configured.',
+        category: 'missing_credential',
+        diagnosticCode: providerId === 'gemini' ? 'INVALID_API_KEY' : null,
+        latencyMs: null,
+        model,
+      };
+    }
+
+    if (!this.createAiProvider) {
+      return {
+        success: false,
+        provider: providerId,
+        status: 'unavailable',
+        message: 'AI provider factory is unavailable.',
+        category: 'provider',
+        diagnosticCode: providerId === 'gemini' ? 'UNKNOWN' : null,
+        latencyMs: null,
+        model,
+      };
+    }
+
+    const aiConfig = this.getAiConfig();
+    const provider = this.createAiProvider(aiConfig);
+    try {
+      await provider.connect();
+      logger.info('ai.provider.connection', {
+        provider: providerId,
+        model,
+        phase: 'test_started',
+      });
+
+      let latencyMs = 0;
+      if (provider instanceof GeminiProvider) {
+        latencyMs = (await provider.testConnection()).latencyMs;
+      } else if (provider instanceof OpenAIProvider) {
+        latencyMs = (await provider.testConnection()).latencyMs;
+      }
+
+      logger.info('ai.provider.connection', {
+        provider: providerId,
+        model,
+        phase: 'test_passed',
+        latencyMs,
+      });
+
+      return {
+        success: true,
+        provider: providerId,
+        status: 'pass',
+        message:
+          providerId === 'gemini'
+            ? 'Gemini connection succeeded.'
+            : 'OpenAI connection succeeded.',
+        category: null,
+        diagnosticCode: null,
+        latencyMs,
+        model,
+      };
+    } catch (error) {
+      const safe = toSafeErrorPayload(error);
+      const details =
+        safe.details && typeof safe.details === 'object'
+          ? (safe.details as Record<string, unknown>)
+          : error instanceof AppError && error.details
+            ? error.details
+            : null;
+      const diagnosticCode =
+        details && typeof details.diagnosticCode === 'string'
+          ? details.diagnosticCode
+          : provider instanceof GeminiProvider
+            ? provider.getLastDiagnosticCode()
+            : null;
+      const category =
+        diagnosticCode ??
+        (details && typeof details.category === 'string'
+          ? String(details.category)
+          : safe.code.toLowerCase());
+      const latencyMs =
+        details && typeof details.latencyMs === 'number' ? details.latencyMs : null;
+      logger.info('ai.provider.connection', {
+        provider: providerId,
+        model,
+        phase: 'test_failed',
+        category,
+        diagnosticCode,
+        status: details && typeof details.status === 'number' ? details.status : null,
+        errorType: details && typeof details.errorType === 'string' ? details.errorType : null,
+        code: safe.code,
+        message: safe.message,
+        latencyMs,
+      });
+      return {
+        success: false,
+        provider: providerId,
+        status: 'fail',
+        message: safe.message,
+        category,
+        diagnosticCode,
+        latencyMs,
+        model,
+      };
+    } finally {
+      await provider.disconnect().catch(() => undefined);
+    }
   }
 
   async generateAiAnswer(questionId: string): Promise<AIResponseState> {

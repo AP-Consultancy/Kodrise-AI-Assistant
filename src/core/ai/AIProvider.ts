@@ -1,5 +1,6 @@
 import type {
   AIChunk,
+  AIProviderCapabilities,
   AIProviderStatus,
   AIRequest,
 } from '../../shared/ai/types';
@@ -14,4 +15,6 @@ export interface AIProvider {
   cancel(requestId: string): Promise<void>;
   disconnect(): Promise<void>;
   getStatus(): AIProviderStatus;
+  /** Optional capability metadata — providers without it are treated as text+streaming. */
+  getCapabilities?(): AIProviderCapabilities;
 }

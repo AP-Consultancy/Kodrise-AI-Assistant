@@ -37,6 +37,7 @@ import type {
 } from '../shared/context/types';
 import type {
   AIConfigStatus,
+  AIConnectionTestResult,
   AIOrchestratorStatus,
   AIResponseState,
 } from '../shared/ai/types';
@@ -67,6 +68,21 @@ import type {
   SessionDocumentMeta,
 } from '../shared/interview/types';
 import type { SimulationConfig, SimulationPublicStatus } from '../shared/simulation/types';
+import type {
+  CreateProblemInput,
+  ExecuteProblemInput,
+  ProblemEvent,
+  ProblemIntelligenceStatus,
+  ProblemResult,
+  ReviseProblemInput,
+  SelectDialectInput,
+  SelectLanguageInput,
+} from '../shared/problem-intelligence/types';
+import type {
+  QuestionCaptureEvent,
+  QuestionCapturePublicConfig,
+  QuestionCaptureStatus,
+} from '../shared/question-capture/types';
 
 function onEvent<T>(channel: string, listener: (payload: T) => void): () => void {
   const wrapped = (_event: IpcRendererEvent, payload: T) => {
@@ -219,6 +235,8 @@ const api: CompanyAiApi = {
       ipcRenderer.invoke(IpcChannels.AI_GET_CURRENT_RESPONSE),
     clearResponse: (): Promise<IpcResult<AIOrchestratorStatus>> =>
       ipcRenderer.invoke(IpcChannels.AI_CLEAR_RESPONSE),
+    testConnection: (): Promise<IpcResult<AIConnectionTestResult>> =>
+      ipcRenderer.invoke(IpcChannels.AI_TEST_CONNECTION, {}),
     onRequestStarted: (listener) => onEvent(IpcEvents.AI_REQUEST_STARTED, listener),
     onResponseStarted: (listener) => onEvent(IpcEvents.AI_RESPONSE_STARTED, listener),
     onResponseChunk: (listener) => onEvent(IpcEvents.AI_RESPONSE_CHUNK, listener),
@@ -356,6 +374,66 @@ const api: CompanyAiApi = {
       ipcRenderer.invoke(IpcChannels.SIMULATION_UPDATE_CONFIG, patch),
     onStatusChanged: (listener: (status: SimulationPublicStatus) => void) =>
       onEvent(IpcEvents.SIMULATION_STATUS_CHANGED, listener),
+  },
+  window: {
+    minimize: (): Promise<IpcResult<{ ok: true }>> =>
+      ipcRenderer.invoke(IpcChannels.WINDOW_MINIMIZE),
+    maximizeToggle: (): Promise<IpcResult<{ maximized: boolean }>> =>
+      ipcRenderer.invoke(IpcChannels.WINDOW_MAXIMIZE),
+    close: (): Promise<IpcResult<{ ok: true }>> => ipcRenderer.invoke(IpcChannels.WINDOW_CLOSE),
+    isMaximized: (): Promise<IpcResult<{ maximized: boolean }>> =>
+      ipcRenderer.invoke(IpcChannels.WINDOW_IS_MAXIMIZED),
+    onMaximizedChanged: (listener: (state: { maximized: boolean }) => void) =>
+      onEvent(IpcEvents.WINDOW_MAXIMIZED_CHANGED, listener),
+  },
+  problem: {
+    getStatus: (): Promise<IpcResult<ProblemIntelligenceStatus>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_GET_STATUS),
+    getCurrent: (): Promise<IpcResult<ProblemResult | null>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_GET_CURRENT),
+    getResult: (problemId: string): Promise<IpcResult<ProblemResult | null>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_GET_RESULT, { problemId }),
+    list: (): Promise<IpcResult<ProblemResult[]>> => ipcRenderer.invoke(IpcChannels.PROBLEM_LIST),
+    getEvents: (limit?: number): Promise<IpcResult<ProblemEvent[]>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_GET_EVENTS, { limit }),
+    create: (input: CreateProblemInput): Promise<IpcResult<ProblemResult>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_CREATE, input),
+    selectLanguage: (input: SelectLanguageInput): Promise<IpcResult<ProblemResult>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_SELECT_LANGUAGE, input),
+    selectDialect: (input: SelectDialectInput): Promise<IpcResult<ProblemResult>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_SELECT_DIALECT, input),
+    revise: (input: ReviseProblemInput): Promise<IpcResult<ProblemResult>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_REVISE, input),
+    execute: (input: ExecuteProblemInput): Promise<IpcResult<ProblemResult>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_EXECUTE, input),
+    cancelExecution: (executionId?: string): Promise<IpcResult<ProblemIntelligenceStatus>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_CANCEL_EXECUTION, { executionId }),
+    reset: (): Promise<IpcResult<ProblemIntelligenceStatus>> =>
+      ipcRenderer.invoke(IpcChannels.PROBLEM_RESET),
+    onEvent: (listener: (event: ProblemEvent) => void) => onEvent(IpcEvents.PROBLEM_EVENT, listener),
+  },
+  questionCapture: {
+    getStatus: (): Promise<IpcResult<QuestionCaptureStatus>> =>
+      ipcRenderer.invoke(IpcChannels.QUESTION_CAPTURE_GET_STATUS),
+    updateConfig: (
+      patch: Partial<QuestionCapturePublicConfig>,
+    ): Promise<IpcResult<QuestionCaptureStatus>> =>
+      ipcRenderer.invoke(IpcChannels.QUESTION_CAPTURE_UPDATE_CONFIG, patch),
+    start: (): Promise<IpcResult<QuestionCaptureStatus>> =>
+      ipcRenderer.invoke(IpcChannels.QUESTION_CAPTURE_START),
+    cancel: (): Promise<IpcResult<QuestionCaptureStatus>> =>
+      ipcRenderer.invoke(IpcChannels.QUESTION_CAPTURE_CANCEL),
+    selectQuestion: (index: number): Promise<IpcResult<QuestionCaptureStatus>> =>
+      ipcRenderer.invoke(IpcChannels.QUESTION_CAPTURE_SELECT_QUESTION, { index }),
+    registerHotkey: (): Promise<IpcResult<QuestionCaptureStatus>> =>
+      ipcRenderer.invoke(IpcChannels.QUESTION_CAPTURE_REGISTER_HOTKEY),
+    onEvent: (listener: (event: QuestionCaptureEvent) => void) =>
+      onEvent(IpcEvents.QUESTION_CAPTURE_EVENT, listener),
+  },
+  questionCaptureOverlay: {
+    submit: (payload: unknown): void => {
+      ipcRenderer.send('question-capture:overlay-result', payload);
+    },
   },
 };
 

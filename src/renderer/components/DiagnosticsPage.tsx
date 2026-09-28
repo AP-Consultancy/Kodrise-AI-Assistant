@@ -5,6 +5,7 @@ import { ContextEnginePanel } from './ContextEnginePanel';
 import { AIOrchestrationPanel } from './AIOrchestrationPanel';
 import { CapturePrivacyPanel } from './CapturePrivacyPanel';
 import { VisualContextPanel } from './VisualContextPanel';
+import { ProblemSolverPanel } from './ProblemSolverPanel';
 import { useFoundationChecks } from '../hooks/useFoundationChecks';
 import './diagnosticsPage.css';
 
@@ -59,6 +60,7 @@ export function DiagnosticsPage({ onBack }: DiagnosticsPageProps) {
       <QuestionUnderstandingPanel />
       <ContextEnginePanel />
       <AIOrchestrationPanel />
+      <ProblemSolverPanel />
       <CapturePrivacyPanel />
       <VisualContextPanel />
     </section>

@@ -55,7 +55,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts', '*.config.ts', 'forge.config.ts', 'vitest.config.ts'],
+    files: ['tests/**/*.ts', '*.config.ts', 'forge.config.ts', 'vitest.config.ts', 'scripts/**/*.{js,mjs,cjs}'],
     languageOptions: {
       globals: {
         ...globals.node,

@@ -1,0 +1,144 @@
+<!doctype html>
+<html data-clarity="balanced" data-intensity="medium" data-blur="high" data-transparency="on">
+<head>
+<meta charset="utf-8" />
+<title>2O.3 Material Clarity Probe</title>
+<style>
+  :root {
+    --material-ambient: rgba(15, 17, 20, 0.2);
+    --material-nav: rgba(18, 20, 24, 0.48);
+    --material-content: rgba(16, 18, 22, 0.7);
+    --material-focus: rgba(20, 23, 28, 0.84);
+    --blur-nav: blur(30px) saturate(130%);
+    --blur-content: blur(28px) saturate(120%);
+    --blur-focus: blur(35px) saturate(130%);
+    --rim: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    --text-primary: rgba(255, 255, 255, 0.96);
+    --text-faint: rgba(255, 255, 255, 0.34);
+    --reading-max: 48.75rem;
+  }
+  html[data-clarity='glass'] { --material-content: rgba(16, 18, 22, 0.55); }
+  html[data-clarity='balanced'] { --material-content: rgba(16, 18, 22, 0.7); }
+  html[data-clarity='focused'] { --material-content: rgba(16, 18, 22, 0.82); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: var(--text-primary);
+  }
+  .scene {
+    min-height: 100vh;
+    padding: 24px;
+    background:
+      linear-gradient(135deg, #fff 0 40%, #ff6b6b 40% 55%, #4ecdc4 55% 70%, #1a1a2e 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(0,0,0,0.12) 18px 19px);
+  }
+  .scene.white { background: #fff; }
+  .scene.dark { background: #0b0d12; }
+  .scene.busy {
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3Crect fill='%23fff' width='120' height='80'/%3E%3Ctext x='4' y='14' font-size='10' fill='%23000'%3ELorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod%3C/text%3E%3Ctext x='4' y='28' font-size='10' fill='%23333'%3Etempor incididunt ut labore et dolore magna aliqua. Ut enim ad%3C/text%3E%3Ctext x='4' y='42' font-size='10' fill='%23000'%3Eminim veniam quis nostrud exercitation ullamco laboris nisi%3C/text%3E%3Ctext x='4' y='56' font-size='10' fill='%23444'%3Eut aliquip ex ea commodo consequat. Duis aute irure dolor%3C/text%3E%3Ctext x='4' y='70' font-size='10' fill='%23000'%3Ein reprehenderit in voluptate velit esse cillum dolore%3C/text%3E%3C/svg%3E")
+      repeat;
+  }
+  .frame { padding: 10px; }
+  .shell {
+    background: var(--material-ambient);
+    backdrop-filter: var(--blur-nav);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    min-height: 70vh;
+    padding: 0;
+    overflow: hidden;
+  }
+  .nav {
+    height: 52px;
+    background: var(--material-nav);
+    backdrop-filter: var(--blur-nav);
+    box-shadow: var(--rim);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.68);
+  }
+  .reading {
+    width: min(100%, var(--reading-max));
+    margin: 24px auto;
+    padding: 22px 24px;
+    border-radius: 18px;
+    background: var(--material-content);
+    backdrop-filter: var(--blur-content);
+    box-shadow: var(--rim), 0 10px 36px rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .q {
+    font-size: 27px;
+    font-weight: 520;
+    letter-spacing: -0.028em;
+    line-height: 1.28;
+    padding: 10px 14px;
+    margin: 0 -6px 20px;
+    border-radius: 12px;
+    background: rgba(124, 140, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .a {
+    font-size: 17px;
+    line-height: 1.65;
+    font-weight: 400;
+    background: transparent;
+  }
+  .composer {
+    width: min(100%, var(--reading-max));
+    margin: 0 auto 24px;
+    padding: 15px 18px;
+    border-radius: 22px;
+    background: var(--material-focus);
+    backdrop-filter: var(--blur-focus);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 50px rgba(0,0,0,0.25);
+  }
+  .controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .controls button {
+    border: 1px solid #999;
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="controls">
+    <button onclick="document.querySelector('.scene').className='scene white'">White</button>
+    <button onclick="document.querySelector('.scene').className='scene dark'">Dark</button>
+    <button onclick="document.querySelector('.scene').className='scene busy'">Text-heavy</button>
+    <button onclick="document.querySelector('.scene').className='scene'">Colorful</button>
+    <button onclick="document.documentElement.dataset.clarity='glass'">Glass</button>
+    <button onclick="document.documentElement.dataset.clarity='balanced'">Balanced</button>
+    <button onclick="document.documentElement.dataset.clarity='focused'">Focused</button>
+  </div>
+  <div class="scene white">
+    <div class="frame">
+      <div class="shell">
+        <div class="nav">AP AI · Live interview</div>
+        <div class="reading">
+          <div class="label">Interviewer</div>
+          <div class="q">How would you design a scalable payment processing system?</div>
+          <div class="label">AI Assistant</div>
+          <div class="a">I'd approach this in three layers: an ingestion API with idempotency keys, an async ledger for settlement, and a reconciliation worker that handles retries without double-charging.</div>
+        </div>
+        <div class="composer">Ask a follow-up or paste a question…</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

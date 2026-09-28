@@ -17,9 +17,13 @@ export function registerConfigIpcHandlers(): void {
     handleIpc(IpcChannels.CONFIG_UPDATE, event, () => {
       const parsed = PublicConfigUpdateSchema.safeParse(payload);
       if (!parsed.success) {
-        throw new ValidationError('Invalid config update payload', {
-          issues: parsed.error.issues.map((issue) => issue.message),
-        });
+        const issues = parsed.error.issues.map(
+          (issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`,
+        );
+        throw new ValidationError(
+          issues[0] ? `Invalid config update: ${issues[0]}` : 'Invalid config update payload',
+          { issues },
+        );
       }
       const { config } = getAppServices();
       return config.update(parsed.data);

@@ -45,6 +45,7 @@
     "vitest": "^5.0.1"
   },
   "dependencies": {
+    "@google/genai": "^1.52.0",
     "electron-squirrel-startup": "^1.0.1",
     "mammoth": "^1.12.3",
     "openai": "^4.104.0",

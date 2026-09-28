@@ -4,7 +4,7 @@ import type {
   AIOrchestratorStatus,
   AIResponseState,
 } from '../../shared/ai/types';
-import { AI_OPENAI_CREDENTIAL_KEY } from '../../shared/ai/types';
+import { AI_GEMINI_CREDENTIAL_KEY, AI_OPENAI_CREDENTIAL_KEY } from '../../shared/ai/types';
 import type { DetectedQuestion } from '../../shared/questions/types';
 import './aiPanel.css';
 
@@ -17,6 +17,8 @@ export function AIOrchestrationPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [apiKeyDraft, setApiKeyDraft] = useState('');
+  const [geminiKeyDraft, setGeminiKeyDraft] = useState('');
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 
   async function refreshAiConfig() {
     const [statusResult, configResult] = await Promise.all([
@@ -150,13 +152,84 @@ export function AIOrchestrationPanel() {
     }
   }
 
+  async function handleSaveGeminiKey() {
+    setBusy(true);
+    setError(null);
+    try {
+      const value = geminiKeyDraft.trim();
+      if (!value) {
+        setError('Enter a Gemini API key');
+        return;
+      }
+      const result = await window.companyAI.credentials.set(AI_GEMINI_CREDENTIAL_KEY, value);
+      setGeminiKeyDraft('');
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      await refreshAiConfig();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleClearGeminiKey() {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await window.companyAI.credentials.delete(AI_GEMINI_CREDENTIAL_KEY);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      setGeminiKeyDraft('');
+      await refreshAiConfig();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleTestConnection() {
+    setBusy(true);
+    setError(null);
+    setConnectionMessage(null);
+    try {
+      const result = await window.companyAI.ai.testConnection();
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      if (result.data.success) {
+        setConnectionMessage(
+          `${result.data.message}${
+            result.data.latencyMs != null ? ` (${result.data.latencyMs} ms)` : ''
+          }`,
+        );
+      } else {
+        const diagnostic = result.data.diagnosticCode ?? result.data.category;
+        setError(
+          diagnostic
+            ? `${result.data.message} [${diagnostic}]`
+            : result.data.message,
+        );
+      }
+      await refreshAiConfig();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleGenerate() {
     if (!question) {
       setError('No classified question available');
       return;
     }
     if (config && !config.configured && config.provider !== 'mock') {
-      setError('Configure the OpenAI API key before generating');
+      setError(
+        config.provider === 'gemini'
+          ? 'Configure the Gemini API key before generating'
+          : 'Configure the OpenAI API key before generating',
+      );
       return;
     }
     setError(null);
@@ -244,7 +317,13 @@ export function AIOrchestrationPanel() {
           <div>
             <dt>Vault key</dt>
             <dd>
-              <code>{AI_OPENAI_CREDENTIAL_KEY}</code>
+              <code>
+                {config?.provider === 'gemini'
+                  ? AI_GEMINI_CREDENTIAL_KEY
+                  : config?.provider === 'mock'
+                    ? 'n/a'
+                    : AI_OPENAI_CREDENTIAL_KEY}
+              </code>
             </dd>
           </div>
           <div>
@@ -263,6 +342,8 @@ export function AIOrchestrationPanel() {
           </div>
         </dl>
 
+        {connectionMessage ? <p className="ai-panel__ok">{connectionMessage}</p> : null}
+
         <div className="ai-panel__credential">
           <label className="ai-panel__field">
             <span>OpenAI API key (stored in vault — never shown again)</span>
@@ -272,16 +353,44 @@ export function AIOrchestrationPanel() {
               spellCheck={false}
               value={apiKeyDraft}
               onChange={(event) => setApiKeyDraft(event.target.value)}
-              placeholder={config?.configured ? '•••••••• (replace)' : 'Enter API key'}
+              placeholder={config?.configured && config.provider === 'openai' ? '•••••••• (replace)' : 'Enter API key'}
               disabled={busy}
             />
           </label>
           <div className="ai-panel__actions">
             <button type="button" onClick={() => void handleSaveApiKey()} disabled={busy}>
-              Save key
+              Save OpenAI key
             </button>
             <button type="button" onClick={() => void handleClearApiKey()} disabled={busy}>
-              Clear key
+              Clear OpenAI key
+            </button>
+          </div>
+        </div>
+
+        <div className="ai-panel__credential">
+          <label className="ai-panel__field">
+            <span>Gemini API key (stored in vault — never shown again)</span>
+            <input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={geminiKeyDraft}
+              onChange={(event) => setGeminiKeyDraft(event.target.value)}
+              placeholder={
+                config?.configured && config.provider === 'gemini' ? '•••••••• (replace)' : 'Enter API key'
+              }
+              disabled={busy}
+            />
+          </label>
+          <div className="ai-panel__actions">
+            <button type="button" onClick={() => void handleSaveGeminiKey()} disabled={busy}>
+              Save Gemini key
+            </button>
+            <button type="button" onClick={() => void handleClearGeminiKey()} disabled={busy}>
+              Clear Gemini key
+            </button>
+            <button type="button" onClick={() => void handleTestConnection()} disabled={busy}>
+              Test Connection
             </button>
           </div>
         </div>

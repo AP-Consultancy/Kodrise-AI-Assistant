@@ -10,10 +10,12 @@ import type { VisualIntelligencePublicConfig } from '../visual-intelligence/type
 import { DEFAULT_VISUAL_INTELLIGENCE_CONFIG } from '../visual-intelligence/types';
 import type { AudioInputMode } from '../audio-input/types';
 import { DEFAULT_AUDIO_INPUT_MODE } from '../audio-input/types';
+import type { QuestionCapturePublicConfig } from '../question-capture/types';
+import { DEFAULT_QUESTION_CAPTURE_CONFIG } from '../question-capture/types';
 
 export type { ContextPublicConfig, UserContext, ProjectContext, ContextBudget } from '../context/types';
 export type { AIPublicConfig, ResponseMode } from '../ai/types';
-export { AI_OPENAI_CREDENTIAL_KEY, DEFAULT_AI_PUBLIC_CONFIG } from '../ai/types';
+export { AI_OPENAI_CREDENTIAL_KEY, AI_GEMINI_CREDENTIAL_KEY, DEFAULT_AI_PUBLIC_CONFIG } from '../ai/types';
 export type { CapturePolicyId } from '../capture-policy/types';
 export type { VisualPublicConfig } from '../visual-context/types';
 export { DEFAULT_VISUAL_PUBLIC_CONFIG } from '../visual-context/types';
@@ -21,6 +23,8 @@ export type { VisualIntelligencePublicConfig } from '../visual-intelligence/type
 export { DEFAULT_VISUAL_INTELLIGENCE_CONFIG } from '../visual-intelligence/types';
 export type { AudioInputMode } from '../audio-input/types';
 export { DEFAULT_AUDIO_INPUT_MODE } from '../audio-input/types';
+export type { QuestionCapturePublicConfig, QuestionCaptureMode } from '../question-capture/types';
+export { DEFAULT_QUESTION_CAPTURE_CONFIG } from '../question-capture/types';
 
 export type AiProviderId = 'none' | 'company-gateway' | 'local';
 
@@ -65,6 +69,21 @@ export interface AudioInputPublicConfig {
   meetingAudioDeviceId: string | null;
 }
 
+/** Phase 2O.2 / 2O.3 — window transparency + content clarity (not capture privacy). */
+export type AppearanceIntensity = 'subtle' | 'medium' | 'strong';
+export type AppearanceBlurLevel = 'low' | 'medium' | 'high';
+/** How strong the conversation reading surface is — not a raw opacity control. */
+export type AppearanceContentClarity = 'glass' | 'balanced' | 'focused';
+
+export interface AppearancePublicConfig {
+  /** When true, Electron window is transparent and materials stay see-through. */
+  transparencyEnabled: boolean;
+  intensity: AppearanceIntensity;
+  blur: AppearanceBlurLevel;
+  /** Conversation reading-zone strength over busy/bright desktops. */
+  contentClarity: AppearanceContentClarity;
+}
+
 export interface PublicConfig {
   schemaVersion: 1;
   theme: 'system' | 'light' | 'dark';
@@ -80,6 +99,8 @@ export interface PublicConfig {
   ai: AIPublicConfig;
   visualContext: VisualPublicConfig;
   visualIntelligence: VisualIntelligencePublicConfig;
+  appearance: AppearancePublicConfig;
+  questionCapture: QuestionCapturePublicConfig;
 }
 
 /** Secrets are never persisted in ordinary public JSON config. */
@@ -101,6 +122,13 @@ export const DEFAULT_AUDIO_INPUT_PUBLIC_CONFIG: AudioInputPublicConfig = {
   inputMode: DEFAULT_AUDIO_INPUT_MODE,
   microphoneDeviceId: null,
   meetingAudioDeviceId: null,
+};
+
+export const DEFAULT_APPEARANCE_PUBLIC_CONFIG: AppearancePublicConfig = {
+  transparencyEnabled: true,
+  intensity: 'medium',
+  blur: 'high',
+  contentClarity: 'balanced',
 };
 
 export const DEFAULT_PUBLIC_CONFIG: PublicConfig = {
@@ -129,6 +157,8 @@ export const DEFAULT_PUBLIC_CONFIG: PublicConfig = {
   ai: structuredClone(DEFAULT_AI_PUBLIC_CONFIG),
   visualContext: structuredClone(DEFAULT_VISUAL_PUBLIC_CONFIG),
   visualIntelligence: structuredClone(DEFAULT_VISUAL_INTELLIGENCE_CONFIG),
+  appearance: { ...DEFAULT_APPEARANCE_PUBLIC_CONFIG },
+  questionCapture: { ...DEFAULT_QUESTION_CAPTURE_CONFIG },
 };
 
 /** CredentialVault key for Deepgram API token. Never exposed to renderer. */

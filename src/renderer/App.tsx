@@ -1,15 +1,26 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { InterviewStatus } from '../shared/interview/types';
+import type { AppearancePublicConfig } from '../shared/config/types';
+import { DEFAULT_APPEARANCE_PUBLIC_CONFIG } from '../shared/config/types';
 import { ProductShell } from './components/ProductShell';
 import { PrepareSessionPage } from './components/PrepareSessionPage';
 import { LiveInterviewPage } from './components/LiveInterviewPage';
 import { SessionSummaryPage } from './components/SessionSummaryPage';
 import { SettingsPage } from './components/SettingsPage';
 import { DiagnosticsPage } from './components/DiagnosticsPage';
+import { TitleBar } from './components/TitleBar';
 import {
   resolveProductView,
   type ShellDestination,
 } from './navigation/productNavigation';
+
+function applyAppearance(appearance: AppearancePublicConfig): void {
+  const root = document.documentElement;
+  root.dataset.transparency = appearance.transparencyEnabled ? 'on' : 'off';
+  root.dataset.intensity = appearance.intensity;
+  root.dataset.blur = appearance.blur;
+  root.dataset.clarity = appearance.contentClarity ?? 'balanced';
+}
 
 export function App() {
   const [destination, setDestination] = useState<ShellDestination>('session');
@@ -29,6 +40,19 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    applyAppearance(DEFAULT_APPEARANCE_PUBLIC_CONFIG);
+    void window.companyAI.config.getPublic().then((result) => {
+      if (!cancelled && result.ok) {
+        applyAppearance(result.data.appearance ?? DEFAULT_APPEARANCE_PUBLIC_CONFIG);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const phase = status?.phase ?? 'prepare';
   const live = phase === 'live';
   const view = resolveProductView({
@@ -41,10 +65,26 @@ export function App() {
     setDestination(next);
   }
 
+  const modeLabel =
+    live && status?.executionMode === 'simulation'
+      ? 'Java simulation'
+      : live
+        ? 'Live interview'
+        : view === 'summary'
+          ? 'Summary'
+          : view === 'settings' || view === 'diagnostics'
+            ? 'Settings'
+            : 'Prepare';
+
   let content: ReactNode;
   switch (view) {
     case 'settings':
-      content = <SettingsPage onOpenDiagnostics={() => setDestination('diagnostics')} />;
+      content = (
+        <SettingsPage
+          onOpenDiagnostics={() => setDestination('diagnostics')}
+          onAppearanceChanged={applyAppearance}
+        />
+      );
       break;
     case 'diagnostics':
       content = <DiagnosticsPage onBack={() => setDestination('settings')} />;
@@ -54,7 +94,6 @@ export function App() {
         <LiveInterviewPage
           status={status}
           onEnded={() => {
-            // InterviewHost phase → summary; stay on session destination.
             setDestination('session');
           }}
         />
@@ -85,7 +124,6 @@ export function App() {
       content = (
         <PrepareSessionPage
           onStarted={() => {
-            // Start Interview → InterviewHost phase becomes live; no Interview tab click.
             setDestination('session');
           }}
         />
@@ -94,8 +132,23 @@ export function App() {
   }
 
   return (
-    <ProductShell destination={destination} onNavigate={navigate} live={live}>
-      {content}
-    </ProductShell>
+    <div className="app-frame">
+      <div className="app-shell">
+        <div className="app-atmosphere" aria-hidden="true" />
+        <TitleBar />
+        <div className="app-content">
+          <ProductShell
+            destination={destination}
+            onNavigate={navigate}
+            live={live && destination === 'session'}
+            paused={Boolean(status?.paused)}
+            modeLabel={modeLabel}
+            startedAt={status?.startedAt ?? null}
+          >
+            {content}
+          </ProductShell>
+        </div>
+      </div>
+    </div>
   );
 }

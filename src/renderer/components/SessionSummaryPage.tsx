@@ -7,18 +7,19 @@ interface SessionSummaryPageProps {
 }
 
 function formatDuration(ms: number): string {
-  const totalMinutes = Math.max(0, Math.round(ms / 60_000));
-  if (totalMinutes < 1) {
-    const seconds = Math.max(1, Math.round(ms / 1000));
-    return `${seconds} seconds`;
-  }
-  return `${totalMinutes} minute${totalMinutes === 1 ? '' : 's'}`;
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 export function SessionSummaryPage({ summary, onNewInterview }: SessionSummaryPageProps) {
   return (
     <section className="summary" aria-labelledby="summary-title">
-      <h1 id="summary-title">Interview Complete</h1>
+      <h1 id="summary-title">Interview complete.</h1>
+      <p className="summary__lede">A quiet snapshot of this session.</p>
+
       <dl className="summary__stats">
         <div>
           <dt>Duration</dt>
@@ -29,21 +30,16 @@ export function SessionSummaryPage({ summary, onNewInterview }: SessionSummaryPa
           <dd>{summary.questionCount}</dd>
         </div>
         <div>
-          <dt>Answers generated</dt>
+          <dt>Answers</dt>
           <dd>{summary.answersGenerated}</dd>
         </div>
-        <div>
-          <dt>Visual analyses</dt>
-          <dd>{summary.visualAnalyses}</dd>
-        </div>
-        <div>
-          <dt>Errors</dt>
-          <dd>{summary.errorCount}</dd>
-        </div>
       </dl>
-      <button type="button" className="summary__primary" onClick={onNewInterview}>
-        New Interview
-      </button>
+
+      <div className="summary__actions">
+        <button type="button" className="summary__primary" onClick={onNewInterview}>
+          Start new interview
+        </button>
+      </div>
     </section>
   );
 }

@@ -28,6 +28,7 @@ import type {
 } from '../context/types';
 import type {
   AIConfigStatus,
+  AIConnectionTestResult,
   AIEvent,
   AIOrchestratorStatus,
   AIResponseState,
@@ -61,6 +62,21 @@ import type {
   SessionDocumentMeta,
 } from '../interview/types';
 import type { SimulationConfig, SimulationPublicStatus } from '../simulation/types';
+import type {
+  CreateProblemInput,
+  ExecuteProblemInput,
+  ProblemEvent,
+  ProblemIntelligenceStatus,
+  ProblemResult,
+  ReviseProblemInput,
+  SelectDialectInput,
+  SelectLanguageInput,
+} from '../problem-intelligence/types';
+import type {
+  QuestionCaptureEvent,
+  QuestionCapturePublicConfig,
+  QuestionCaptureStatus,
+} from '../question-capture/types';
 
 export type IpcResult<T> =
   | { ok: true; data: T }
@@ -238,6 +254,7 @@ export interface CompanyAiApi {
     cancel: (requestId?: string) => Promise<IpcResult<AIResponseState | null>>;
     getCurrentResponse: () => Promise<IpcResult<AIResponseState | null>>;
     clearResponse: () => Promise<IpcResult<AIOrchestratorStatus>>;
+    testConnection: () => Promise<IpcResult<AIConnectionTestResult>>;
     onRequestStarted: (listener: (event: AIEvent) => void) => () => void;
     onResponseStarted: (listener: (event: AIEvent) => void) => () => void;
     onResponseChunk: (listener: (event: AIEvent) => void) => () => void;
@@ -331,6 +348,43 @@ export interface CompanyAiApi {
     end: () => Promise<IpcResult<SimulationPublicStatus>>;
     updateConfig: (patch: Partial<SimulationConfig>) => Promise<IpcResult<SimulationPublicStatus>>;
     onStatusChanged: (listener: (status: SimulationPublicStatus) => void) => () => void;
+  };
+  window: {
+    minimize: () => Promise<IpcResult<{ ok: true }>>;
+    maximizeToggle: () => Promise<IpcResult<{ maximized: boolean }>>;
+    close: () => Promise<IpcResult<{ ok: true }>>;
+    isMaximized: () => Promise<IpcResult<{ maximized: boolean }>>;
+    onMaximizedChanged: (listener: (state: { maximized: boolean }) => void) => () => void;
+  };
+  problem: {
+    getStatus: () => Promise<IpcResult<ProblemIntelligenceStatus>>;
+    getCurrent: () => Promise<IpcResult<ProblemResult | null>>;
+    getResult: (problemId: string) => Promise<IpcResult<ProblemResult | null>>;
+    list: () => Promise<IpcResult<ProblemResult[]>>;
+    getEvents: (limit?: number) => Promise<IpcResult<ProblemEvent[]>>;
+    create: (input: CreateProblemInput) => Promise<IpcResult<ProblemResult>>;
+    selectLanguage: (input: SelectLanguageInput) => Promise<IpcResult<ProblemResult>>;
+    selectDialect: (input: SelectDialectInput) => Promise<IpcResult<ProblemResult>>;
+    revise: (input: ReviseProblemInput) => Promise<IpcResult<ProblemResult>>;
+    execute: (input: ExecuteProblemInput) => Promise<IpcResult<ProblemResult>>;
+    cancelExecution: (executionId?: string) => Promise<IpcResult<ProblemIntelligenceStatus>>;
+    reset: () => Promise<IpcResult<ProblemIntelligenceStatus>>;
+    onEvent: (listener: (event: ProblemEvent) => void) => () => void;
+  };
+  questionCapture: {
+    getStatus: () => Promise<IpcResult<QuestionCaptureStatus>>;
+    updateConfig: (
+      patch: Partial<QuestionCapturePublicConfig>,
+    ) => Promise<IpcResult<QuestionCaptureStatus>>;
+    start: () => Promise<IpcResult<QuestionCaptureStatus>>;
+    cancel: () => Promise<IpcResult<QuestionCaptureStatus>>;
+    selectQuestion: (index: number) => Promise<IpcResult<QuestionCaptureStatus>>;
+    registerHotkey: () => Promise<IpcResult<QuestionCaptureStatus>>;
+    onEvent: (listener: (event: QuestionCaptureEvent) => void) => () => void;
+  };
+  /** Used only by the ephemeral capture overlay window. */
+  questionCaptureOverlay: {
+    submit: (payload: unknown) => void;
   };
 }
 
