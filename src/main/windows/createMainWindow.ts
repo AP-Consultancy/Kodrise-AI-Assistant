@@ -36,6 +36,10 @@ export function createMainWindow(): BrowserWindow {
     frame: false,
     backgroundColor: '#00000000',
     hasShadow: true,
+    // Hide from the taskbar; keep the window pinned above other apps so switching
+    // browser/meeting tabs does not bury it with no way to restore.
+    skipTaskbar: true,
+    alwaysOnTop: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -58,10 +62,25 @@ export function createMainWindow(): BrowserWindow {
 
   const mainWindow = new BrowserWindow(windowOptions);
 
+  // Stronger than constructor alwaysOnTop on Windows — stays above most fullscreen apps.
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  // With skipTaskbar, minimize would strand the window with no taskbar restore path.
+  mainWindow.on('minimize', () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.restore();
+      mainWindow.show();
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  });
+
   logger.info('window.created', {
     transparent: true,
     frame: false,
     backgroundColor: '#00000000',
+    skipTaskbar: true,
+    alwaysOnTop: true,
     platform: process.platform,
   });
 
@@ -69,6 +88,7 @@ export function createMainWindow(): BrowserWindow {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
